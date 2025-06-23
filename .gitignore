@@ -164,3 +164,4 @@ cython_debug/
 .DS_Store
 test_run_l
 test_run_nl
+notebooks
