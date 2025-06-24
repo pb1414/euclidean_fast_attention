@@ -63,8 +63,8 @@ class Interaction(nn.Module):
 
 
 class EFABlock(nn.Module):
-    era_lebedev_num: int
     era_max_length: float
+    era_lebedev_num: int = 50
     era_max_frequency: float = jnp.pi
     era_qk_num_features: int = 16
     era_v_num_features: int = 32
@@ -83,8 +83,7 @@ class EFABlock(nn.Module):
             x,
             positions,
             batch_segments,
-            graph_mask,
-            i  # unfortunately needed for backward compatibility
+            graph_mask
     ):
         num_features = x.shape[-1]
 
@@ -95,7 +94,7 @@ class EFABlock(nn.Module):
             lebedev_num=self.era_lebedev_num,
             epe_max_frequency=self.era_max_frequency,
             epe_max_length=self.era_max_length,
-            name=f'EuclideanRopeAttention_{i}'
+            name=f'EuclideanFastAttention'
         )(
             x,
             positions,
@@ -127,14 +126,32 @@ class SchNet(nn.Module):
     zmax: int = 119
 
     use_efa_block: bool = False
+    
     efa_block_behaves_like_identity_at_init: bool = True
-    efa_block_lebedev_num: Optional[int] = None
-    efa_block_max_length: Optional[float] = None
+    era_lebedev_num: Optional[int] = None
+    era_max_frequency: Optional[float] = None
+    era_max_length: Optional[float] = None
+    era_qk_num_features: Optional[int] = None
+    era_v_num_features: Optional[int] = None
 
     def setup(self):
         if self.use_efa_block:
-            assert self.efa_block_lebedev_num is not None
-            assert self.efa_block_max_length is not None
+            try:
+                assert self.era_lebedev_num is not None
+                assert self.era_max_length is not None
+                assert self.era_qk_num_features is not None
+                assert self.era_v_num_features is not None
+                assert self.era_max_frequency is not None
+            except AssertionError:
+                raise ValueError(
+                    "If use_efa_block is True, all EFA block parameters must be specified."
+                    "Received: "
+                    f"era_lebedev_num={self.era_lebedev_num}, "
+                    f"era_max_length={self.era_max_length}, "
+                    f"era_qk_num_features={self.era_qk_num_features}, "
+                    f"era_v_num_features={self.era_v_num_features}, "
+                    f"era_max_frequency={self.era_max_frequency}"
+                )
 
     def energy(
             self,
@@ -190,15 +207,17 @@ class SchNet(nn.Module):
             if self.use_efa_block:
                 x_nl = x[:, None, None]
                 x_nl = EFABlock(
-                    era_lebedev_num=self.efa_block_lebedev_num,
-                    era_max_length=self.efa_block_max_length,
+                    era_lebedev_num=self.era_lebedev_num,
+                    era_max_frequency=self.era_max_frequency,
+                    era_max_length=self.era_max_length,
+                    era_qk_num_features=self.era_qk_num_features,
+                    era_v_num_features=self.era_v_num_features,
                     behaves_like_identity_at_init=self.efa_block_behaves_like_identity_at_init,
                 )(
                     x=x_nl,
                     positions=positions,
                     batch_segments=batch_segments,
                     graph_mask=graph_mask,
-                    i=i
                 )  # (num_nodes, 1, 1, num_features)
 
                 x_nl = jnp.squeeze(x_nl, axis=(-2, -3))  # (num_nodes, num_features)

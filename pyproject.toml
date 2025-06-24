@@ -19,6 +19,9 @@ wandb = "*"
 orbax-checkpoint = "*"
 jraph = "*"
 clu = "*"
+ase = "*"
+ml_collections = "*"
+tensorflow-cpu = "*"
 
 [build-system]
 requires = ["poetry-core"]

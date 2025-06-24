@@ -165,3 +165,4 @@ cython_debug/
 test_run_l
 test_run_nl
 notebooks
+wandb
