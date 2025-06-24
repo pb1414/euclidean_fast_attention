@@ -255,4 +255,4 @@ def mean_squared_error(a, b, msk):
 
 @jax.jit
 def collect_metrics(mtrcs):
-    return jax.tree_map(lambda *args: jnp.mean(jnp.stack(args)), *mtrcs)
+    return jax.tree_util.tree_map(lambda *args: jnp.mean(jnp.stack(args)), *mtrcs)

@@ -481,7 +481,7 @@ class NpzTrainer:
             'forces_rmse': forces_rmse,
         }
 
-        metrics = jax.tree_map(lambda x: float(x), metrics)
+        metrics = jax.tree_util.tree_map(lambda x: float(x), metrics)
 
         return metrics, (
             energy_predictions,
