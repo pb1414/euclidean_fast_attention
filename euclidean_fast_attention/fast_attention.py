@@ -61,6 +61,7 @@ class EuclideanFastAttention(nn.Module):
         lebedev_num: Number of Lebedev grid points. Default: 6 (this will be to small for most cases)
         parametrized: Features are refined via trainable query, key and value matrix before passed to the attention
             update. Default: True
+        pbc_bool: If `True`, lattice vectors are used as grid points.
         num_features_qk: Feature dimension for query and key. Defaults to feature dimension of the input features.
         max_degree_qk: Maximal degree for query and key. Defaults to maximal degree of the input features.
         include_pseudotensors_qk: Include pseudotensors from the query and key.
@@ -94,6 +95,7 @@ class EuclideanFastAttention(nn.Module):
         """
     lebedev_num: int = 6
     parametrized: bool = True
+    pbc_bool: bool = False
 
     num_features_qk: Optional[int] = None
     max_degree_qk: Optional[int] = None
@@ -126,7 +128,8 @@ class EuclideanFastAttention(nn.Module):
             inputs: Array,
             positions: Array,
             batch_segments: Array,
-            graph_mask: Array
+            graph_mask: Array,
+            lattice_vectors: Optional[Array] = None
     ):
         """
         Given equivariant input features and node positions, calculate a Euclidean fast attention update.
@@ -147,6 +150,7 @@ class EuclideanFastAttention(nn.Module):
             graph_mask (): (num_graphs) - Labels which graphs are "true" graphs and which are padded.
                 I.e. for the batch_segments example from above, it would be
                 [True, True] and [True, True, False].
+            lattice_vectors (): (num_graphs, 3, 3) - Lattice vectors for periodic boundary conditions.
 
         Returns:
             Updated features. Output shape depends on the specific settings, but will be the same shape as
@@ -156,6 +160,7 @@ class EuclideanFastAttention(nn.Module):
         """
 
         max_degree_inputs = int(np.rint(np.sqrt(inputs.shape[-2]) - 1).item())
+        num_graphs = graph_mask.sum()
 
         # if no tensor integration is performed, max_degree_sph can not be set.
         if not self.tensor_integration:
@@ -232,11 +237,28 @@ class EuclideanFastAttention(nn.Module):
             k = inputs  # (N, 1 or 2, (max_degree_in + 1)**2, num_features)
             v = inputs  # (N, 1 or 2, (max_degree_in + 1)**2, num_features)
 
-        # Lebedev grid.
-        with jax.ensure_compile_time_eval():
-            grid_u, grid_w = e3x.so3.lebedev_quadrature(
-                num=self.lebedev_num
-            )
+        if self.pbc_bool:
+            if lattice_vectors is None:
+                raise ValueError(
+                    'lattice_vectors must be provided if pbc_bool is True.'
+                )
+            if lattice_vectors.shape != (num_graphs, 3, 3):
+                raise ValueError(
+                    f'lattice_vectors must have shape (num_graphs, 3, 3). '
+                    f'Received {lattice_vectors.shape}.'
+                )
+            # Lattice vectors are a special case of a grid with M = 3 grid points.
+            grid_u = lattice_vectors[batch_segments] # (N, 3, 3)
+            grid_w = jnp.ones(
+                (3, ), 
+                dtype=grid_u.dtype
+            ) # (3, )
+        else:
+            # Lebedev grid.
+            with jax.ensure_compile_time_eval():
+                grid_u, grid_w = e3x.so3.lebedev_quadrature(
+                    num=self.lebedev_num
+                ) # (M, 3), (M, )
 
         # If frequencies are trainable, initialize them as params.
         if self.epe_frequencies_trainable:

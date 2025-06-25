@@ -87,8 +87,8 @@ def apply(
     v: Value, following E3x convention, (N, 1 or 2, (max_degree_v+1)**2, num_features_v)
     pos: Node positions, (N, dim)
     theta: Frequencies, (num_features_qk/2)
-    grid_u: Lebedev grid points, (M, dim)
-    grid_w: Lebedev integration weights, (M)
+    grid_u: Lebedev grid points, (M, dim) or row-wise lattice vectors for each node, (N, 3, 3)
+    grid_w: Lebedev integration weights, (M) or for lattice vectors all ones of shape (3, ) as lattice vectors are a special case with M = 3
     batch_segments: Batch segments, (N)
     graph_mask: Graph mask, (max_num_graphs)
     include_pseudotensors_qk: Include pseudotensors from query and key.
@@ -170,7 +170,17 @@ def apply(
     num_parity_v, num_degrees_v = v.shape[-3], v.shape[-2]
 
     # Calculate projection of positions on directions of integration grid.
-    x = jnp.einsum("nd,md->nm", pos, grid_u)
+    if grid_u.ndim == 2:
+        # This is the default case with Lebedev grids.
+        x = jnp.einsum("nd,md->nm", pos, grid_u)
+    elif grid_u.ndim == 3:
+        if len(grid_u) != len(pos):
+            raise ValueError(
+                f"grid_u must have the same length as positions."
+                f"received {len(grid_u)=} and {len(pos)=}."
+            )
+        # This assumes that the grid (lattice) vectors are stored row-wise.
+        x = jnp.einsum("nd,nmd->nm", pos, grid_u)
 
     # Calculate sin/cos for RoPE.
     sin, cos = calculate_rotary_position_embedding(x, theta)  # (N, M, num_features_qk)
