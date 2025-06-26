@@ -11,8 +11,8 @@ def get_config():
     config = ml_collections.ConfigDict()
     
     config.datafile = config_dict.placeholder(str)
-    config.num_train = 200
-    config.num_valid = 50
+    config.num_train = 4000
+    config.num_valid = 500
     config.split_seed = 0
     config.model_seed = 0
     config.max_num_nodes = 8 * 110 + 1
