@@ -160,7 +160,7 @@ class EuclideanFastAttention(nn.Module):
         """
 
         max_degree_inputs = int(np.rint(np.sqrt(inputs.shape[-2]) - 1).item())
-        num_graphs = graph_mask.sum()
+        num_graphs = len(graph_mask)
 
         # if no tensor integration is performed, max_degree_sph can not be set.
         if not self.tensor_integration:
@@ -249,7 +249,7 @@ class EuclideanFastAttention(nn.Module):
                 )
             # Lattice vectors are a special case of a grid with M = 3 grid points.
             grid_u = lattice_vectors[batch_segments] # (N, 3, 3)
-            grid_w = jnp.ones(
+            grid_w = 1/3. * jnp.ones(
                 (3, ), 
                 dtype=grid_u.dtype
             ) # (3, )

@@ -4,6 +4,9 @@ import jax.numpy as jnp
 import e3x
 from euclidean_fast_attention.fast_attention import EuclideanFastAttention
 from typing import Callable, Optional
+from jaxtyping import Array
+
+from .utils import space_utils
 
 
 def shifted_softplus(x):
@@ -64,13 +67,14 @@ class Interaction(nn.Module):
 
 class EFABlock(nn.Module):
     era_max_length: float
+    pbc_bool: bool
     era_lebedev_num: int = 50
     era_max_frequency: float = jnp.pi
     era_qk_num_features: int = 16
     era_v_num_features: int = 32
     era_activation_fn: Callable = e3x.nn.gelu
     behaves_like_identity_at_init: bool = True
-
+    
     def setup(self):
         if self.behaves_like_identity_at_init == True:
             self.last_layer_kernel_init_fn = jax.nn.initializers.zeros            
@@ -83,7 +87,8 @@ class EFABlock(nn.Module):
             x,
             positions,
             batch_segments,
-            graph_mask
+            graph_mask,
+            lattice_vectors,
     ):
         num_features = x.shape[-1]
 
@@ -94,12 +99,13 @@ class EFABlock(nn.Module):
             lebedev_num=self.era_lebedev_num,
             epe_max_frequency=self.era_max_frequency,
             epe_max_length=self.era_max_length,
-            name=f'EuclideanFastAttention'
+            pbc_bool=self.pbc_bool,
         )(
             x,
             positions,
             batch_segments,
-            graph_mask
+            graph_mask,
+            lattice_vectors=lattice_vectors
         )
 
         # Atom-wise refinement MLP for non local features.
@@ -119,6 +125,8 @@ class SchNet(nn.Module):
     num_features: int = 128
 
     cutoff: float = 5.
+
+    pbc_bool: bool = False
 
     radial_basis_fn: str = 'reciprocal_bernstein'
     num_basis_fn: int = 32
@@ -157,6 +165,8 @@ class SchNet(nn.Module):
             self,
             atomic_numbers,
             positions,
+            lattice_vectors,
+            cell_offsets,
             dst_idx,
             src_idx,
             batch_segments,
@@ -165,10 +175,15 @@ class SchNet(nn.Module):
         num_nodes = len(atomic_numbers)
         num_graphs = len(graph_mask)
 
-        # Calculate displacement vectors.
-        positions_dst = e3x.ops.gather_dst(positions, dst_idx=dst_idx)
-        positions_src = e3x.ops.gather_src(positions, src_idx=src_idx)
-        displacements = positions_src - positions_dst  # (num_pairs, 3).
+        displacements = space_utils.calculate_displacement_vectors(
+            positions=positions,
+            dst_idx=dst_idx,
+            src_idx=src_idx,
+            batch_segments=batch_segments,
+            lattice_vectors=lattice_vectors,
+            cell_offsets=cell_offsets,
+            pbc_bool=self.pbc_bool
+        )  # (num_pairs, 3)
 
         # Calculate distances.
         distances = e3x.ops.norm(displacements, axis=-1, keepdims=True)  # (num_pairs, 1)
@@ -213,11 +228,13 @@ class SchNet(nn.Module):
                     era_qk_num_features=self.era_qk_num_features,
                     era_v_num_features=self.era_v_num_features,
                     behaves_like_identity_at_init=self.efa_block_behaves_like_identity_at_init,
+                    pbc_bool=self.pbc_bool
                 )(
                     x=x_nl,
                     positions=positions,
                     batch_segments=batch_segments,
                     graph_mask=graph_mask,
+                    lattice_vectors=lattice_vectors,
                 )  # (num_nodes, 1, 1, num_features)
 
                 x_nl = jnp.squeeze(x_nl, axis=(-2, -3))  # (num_nodes, num_features)
@@ -264,6 +281,8 @@ class SchNet(nn.Module):
             src_idx,
             batch_segments=None,
             graph_mask=None,
+            lattice_vectors: Optional[Array] = None,
+            cell_offsets: Optional[Array] = None,
             atomic_dipoles=None,
             calculate_forces=True
     ):
@@ -280,6 +299,8 @@ class SchNet(nn.Module):
             (_, energy), forces = energy_and_forces(
                 atomic_numbers,
                 positions,
+                lattice_vectors,
+                cell_offsets,
                 dst_idx,
                 src_idx,
                 batch_segments,
@@ -291,6 +312,8 @@ class SchNet(nn.Module):
             return self.energy(
                 atomic_numbers,
                 positions,
+                lattice_vectors,
+                cell_offsets,
                 dst_idx,
                 src_idx,
                 batch_segments,

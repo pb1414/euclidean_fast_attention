@@ -4,6 +4,7 @@ import jaxtyping
 import jraph
 import numpy as np
 
+from ase import neighborlist as ase_neighborlist
 from typing import Any
 
 
@@ -25,10 +26,30 @@ def compute_senders_and_receivers_np(
     receivers = keep_edges[1].astype(np.int32)
     return senders, receivers
 
+def compute_senders_and_receivers_pbc(
+    positions,
+    lattice_vectors,
+    cutoff: float,
+):
+    
+    senders, receivers, cell_offsets = ase_neighborlist.primitive_neighbor_list(
+        'ijS',
+        pbc=np.array(
+            [True, True, True]
+        ),
+        cell=lattice_vectors,
+        positions=positions,
+        cutoff=cutoff,
+        self_interaction=False
+    )
+    
+    return senders, receivers, cell_offsets
+
 
 def create_graph_tuple(
         element: dict[str, Any],
-        cutoff: float
+        cutoff: float,
+        pbc_bool: bool
 ) -> jraph.GraphsTuple:
     """Takes a data element and wraps relevant components in a GraphsTuple."""
     atomic_numbers = element['atomic_numbers']
@@ -39,8 +60,24 @@ def create_graph_tuple(
     node_mask = element['node_mask']
     if node_mask is None:
         node_mask = np.ones((len(atomic_numbers), )).astype(bool)
+    
+    if pbc_bool == False:
+        senders, receivers = compute_senders_and_receivers_np(positions[node_mask], cutoff)
+        lattice_vectors = None
+        cell_offsets = None
+    else:
+        lattice_vectors = element.get('lattice_vectors', None)
+        if lattice_vectors is None:
+            raise ValueError(
+                f'lattice_vectors must be provided when running with PBCs. received {lattice_vectors=}.'
+            )
+        senders, receivers, cell_offsets = compute_senders_and_receivers_pbc(
+            positions=positions[node_mask], 
+            lattice_vectors=lattice_vectors, 
+            cutoff=cutoff
+        )
+        lattice_vectors = lattice_vectors.reshape(1, 3, 3)
 
-    senders, receivers = compute_senders_and_receivers_np(positions[node_mask], cutoff)
     num_nodes = np.sum(node_mask)
     num_edges = len(receivers)
     return jraph.GraphsTuple(
@@ -55,9 +92,12 @@ def create_graph_tuple(
             'atomic_dipoles': atomic_dipoles[node_mask] if atomic_dipoles is not None else None
         },
         globals={
+            'lattice_vectors': lattice_vectors,
             'energy': energy.reshape(-1),
         },
-        edges=None,
+        edges={
+            'cell_offsets': cell_offsets,
+        },
     )
 
 
@@ -69,6 +109,8 @@ def jraph_to_input(x: jraph.GraphsTuple):
     src_idx = x.receivers
     dst_idx = x.senders
     energy = x.globals['energy']
+    lattice_vectors = x.globals['lattice_vectors']
+    cell_offsets = x.edges['cell_offsets']
     forces = x.nodes['forces']
     atomic_dipoles = x.nodes.get('atomic_dipoles')
 
@@ -80,6 +122,8 @@ def jraph_to_input(x: jraph.GraphsTuple):
         'forces': forces,
         'src_idx': src_idx,
         'dst_idx': dst_idx,
+        'lattice_vectors': lattice_vectors,
+        'cell_offsets': cell_offsets
     }
 
 

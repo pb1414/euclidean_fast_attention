@@ -103,6 +103,8 @@ def make_loss_fn(model, energy_weight, forces_weight):
             dst_idx=batch['dst_idx'],
             batch_segments=batch['batch_segments'],
             graph_mask=batch['graph_mask'],
+            lattice_vectors=batch['lattice_vectors'],
+            cell_offsets=batch['cell_offsets']
         )
         energy_label, forces_label = batch['energy'], batch['forces']
         graph_mask, node_mask = batch['graph_mask'], batch['node_mask']
@@ -185,6 +187,8 @@ def make_inference_fn(params, model):
             dst_idx=batch['dst_idx'],
             batch_segments=batch['batch_segments'],
             graph_mask=batch['graph_mask'],
+            lattice_vectors=batch['lattice_vectors'],
+            cell_offsets=batch['cell_offsets']
         )
         return energy, forces
 

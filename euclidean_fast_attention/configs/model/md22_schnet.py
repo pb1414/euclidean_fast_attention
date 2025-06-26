@@ -13,15 +13,15 @@ def get_config():
     config.name = 'schnet'
 
     # Model Architecture Parameters
-    config.num_layers = 3
+    config.num_layers = 2
     config.num_features = 128
 
     # Interaction Parameters
-    config.cutoff = 5.0
+    config.cutoff = 4.0
 
     # Radial Basis Function Parameters
-    config.radial_basis_fn = 'reciprocal_bernstein'
-    config.num_basis_fn = 32
+    config.radial_basis_fn = 'exponential_bernstein'
+    config.num_basis_fn = 64
 
     # Atomic Number / Element Range
     config.zmax = 119

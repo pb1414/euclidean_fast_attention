@@ -44,6 +44,10 @@ def convert_to_angstrom(
 ) -> dict[str, Any]:
     element['forces'] = element['forces'] * 1 / conversion_factor
     element['coordinates'] = element['coordinates'] * conversion_factor
+    
+    if element['lattice_vectors'] is not None:
+        element['lattice_vectors'] = element['lattice_vectors'] * conversion_factor
+    
     return element
 
 
@@ -102,6 +106,11 @@ def split_into_train_valid_test(
         except KeyError:
             node_mask = None
 
+        try:
+            lattice_vectors = f['lattice_vectors']
+        except KeyError:
+            lattice_vectors = None
+
         positions = positions[random_permutation]
         atomic_numbers = atomic_numbers[random_permutation]
         energy = energy[random_permutation]
@@ -112,6 +121,9 @@ def split_into_train_valid_test(
 
         if node_mask is not None:
             node_mask = node_mask[random_permutation]
+        
+        if lattice_vectors is not None:
+            lattice_vectors = lattice_vectors[random_permutation]
 
         energy_mean = np.mean(energy[:num_train])
 
@@ -121,6 +133,7 @@ def split_into_train_valid_test(
             [
                 {
                     'coordinates': np.asarray(positions[i]),
+                    'lattice_vectors': np.asarray(lattice_vectors[i]) if lattice_vectors is not None else None,
                     'atomic_numbers': np.asarray(
                         atomic_numbers[i], dtype=np.int32
                     ),
@@ -136,6 +149,7 @@ def split_into_train_valid_test(
             [
                 {
                     'coordinates': np.asarray(positions[i]),
+                    'lattice_vectors': np.asarray(lattice_vectors[i]) if lattice_vectors is not None else None,
                     'atomic_numbers': np.asarray(
                         atomic_numbers[i], dtype=np.int32
                     ),
@@ -151,6 +165,7 @@ def split_into_train_valid_test(
             [
                 {
                     'coordinates': np.asarray(positions[i]),
+                    'lattice_vectors': np.asarray(lattice_vectors[i]) if lattice_vectors is not None else None,
                     'atomic_numbers': np.asarray(
                         atomic_numbers[i], dtype=np.int32
                     ),
@@ -210,6 +225,8 @@ class NpzTrainer:
     subtract_energy_mean: bool = True
 
     use_wandb: bool = True
+
+    pbc_bool: bool = False
 
     def prepare_training_and_validation_data(self, cutoff=None, shuffle=True):
         """Prepare training and validation data.
@@ -274,7 +291,7 @@ class NpzTrainer:
             cutoff = 1e6
 
         make_graph_tuple = functools.partial(
-            jraph_utils.create_graph_tuple, cutoff=cutoff
+            jraph_utils.create_graph_tuple, cutoff=cutoff, pbc_bool=self.pbc_bool
         )
 
         prepared_train_ds = map(make_graph_tuple, train_split)
@@ -523,6 +540,8 @@ class NpzTrainer:
                 src_idx=jnp.zeros((self.max_num_edges,), dtype=jnp.int32),
                 batch_segments=jnp.zeros((self.max_num_nodes,), dtype=jnp.int32),
                 graph_mask=jnp.array([True] * self.max_num_graphs),
+                lattice_vectors=None if self.pbc_bool == False else jnp.zeros((self.max_num_graphs, 3, 3)),
+                cell_offsets=None if self.pbc_bool == False else jnp.zeros((self.max_num_edges, 3))
             )
         else:
             # use params passed to the run method by creating a deep copy

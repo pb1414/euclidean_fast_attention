@@ -73,16 +73,18 @@ def create_base_model_from_config(config: ml_collections.ConfigDict):
         era_use_in_iterations = None
     else:
         # era_use_in_iterations starts at index 0.
-        assert max(era_use_in_iterations) < model_config["num_iterations"]
+        assert max(era_use_in_iterations) < model_config["num_layers"]
 
     model_config["era_activation_fn"] = era_activation_fn
     model_config["era_use_in_iterations"] = era_use_in_iterations
+    model_config['pbc_bool'] = config.trainer.pbc_bool
 
     return model.EnergyModel(**model_config)
 
 
 def create_schnet_from_config(config: ml_collections.ConfigDict):
     model_config = dict(config.model)
+    model_config['pbc_bool'] = config.trainer.pbc_bool
     
     return schnet.SchNet(**model_config)
 
@@ -111,6 +113,7 @@ def create_trainer_from_config(config: ml_collections.ConfigDict):
         max_num_graphs=config.trainer.max_num_graphs,
         energy_unit=config.trainer.energy_unit,
         length_unit=config.trainer.length_unit,
+        pbc_bool=config.trainer.pbc_bool,
     )
 
 

@@ -13,6 +13,7 @@ from typing import Optional
 from typing import Sequence
 
 from . import fast_attention
+from .utils import space_utils
 
 Array = jaxtyping.Array
 
@@ -23,7 +24,7 @@ class EnergyModel(nn.Module):
     Attributes:
     cutoff: Cutoff used in message passing step.
     num_features: Number of features.
-    num_iterations: Number of iterations.
+    num_layers: Number of layers.
     num_post_residual_mlps: Number of residual MLPs after adding the output of
       the local and the non local update.
     mp_max_degree: Maximal degree of during message passing (MP).
@@ -56,10 +57,12 @@ class EnergyModel(nn.Module):
     cutoff: float = 5.0
     cutoff_fn: str = 'smooth_cutoff'
     num_features: int = 32
-    num_iterations: int = 2
+    num_layers: int = 2
     num_post_residual_mlps: int = 0
     self_interaction: bool = False  # self interactions via iterated tensor products
     atomic_dipole_embedding: bool = False
+
+    pbc_bool: bool = False
 
     mp_max_degree: int = 2
     radial_basis_fn: str = 'reciprocal_bernstein'
@@ -104,6 +107,8 @@ class EnergyModel(nn.Module):
             self,
             atomic_numbers,
             positions,
+            lattice_vectors,
+            cell_offsets,
             atomic_dipoles,
             dst_idx,
             src_idx,
@@ -114,9 +119,15 @@ class EnergyModel(nn.Module):
         num_graphs = len(graph_mask)
 
         # 1. Calculate displacement vectors.
-        positions_dst = e3x.ops.gather_dst(positions, dst_idx=dst_idx)
-        positions_src = e3x.ops.gather_src(positions, src_idx=src_idx)
-        displacements = positions_src - positions_dst  # (num_pairs, 3).
+        displacements = space_utils.calculate_displacement_vectors(
+            positions,
+            dst_idx=dst_idx,
+            src_idx=src_idx,
+            batch_segments=batch_segments,
+            lattice_vectors=lattice_vectors,
+            cell_offsets=cell_offsets,
+            pbc_bool=self.pbc_bool
+        )
 
         # 2. Expand displacement vectors in basis functions.
         basis = e3x.nn.basis(
@@ -153,9 +164,9 @@ class EnergyModel(nn.Module):
         # ------------------------ begin of interaction blocks -------------------------------------------
 
         # Perform iterations (message-passing + atom-wise refinement).
-        for i in range(self.num_iterations):
+        for i in range(self.num_layers):
             # Message-pass.
-            if i == self.num_iterations - 1:  # Final iteration.
+            if i == self.num_layers - 1:  # Final iteration.
 
                 # Since we will only use scalar features after the final message-pass,
                 # we do not want to produce non-scalar features for efficiency reasons.
@@ -191,6 +202,7 @@ class EnergyModel(nn.Module):
                         else:
                             # Use the EFA block.
                             y_nl = fast_attention.EuclideanFastAttention(
+                                pbc_bool=self.pbc_bool,
                                 lebedev_num=self.era_lebedev_num,
                                 num_features_qk=self.era_qk_num_features,
                                 num_features_v=self.era_v_num_features,
@@ -213,6 +225,7 @@ class EnergyModel(nn.Module):
                                 positions,
                                 batch_segments,
                                 graph_mask,
+                                lattice_vectors=lattice_vectors,
                             )
 
                         # Skip connection around EFA.
@@ -257,6 +270,7 @@ class EnergyModel(nn.Module):
                             y_nl = e3x.nn.Dense(self.num_features)(x)
                         else:
                             y_nl = fast_attention.EuclideanFastAttention(
+                                pbc_bool=self.pbc_bool,
                                 lebedev_num=self.era_lebedev_num,
                                 num_features_qk=self.era_qk_num_features,
                                 num_features_v=self.era_v_num_features,
@@ -279,6 +293,7 @@ class EnergyModel(nn.Module):
                                 positions,
                                 batch_segments,
                                 graph_mask,
+                                lattice_vectors=lattice_vectors,
                             )
 
                         # skip connection around RoPe attention
@@ -315,7 +330,7 @@ class EnergyModel(nn.Module):
                 # To couple local and global directional information, i.e. when local vectorial embeddings
                 # such like atomic dipoles are present we perform a self-interaction CG tensor contraction per atom.
                 if self.atomic_dipole_embedding or self.self_interaction:
-                    if i == self.num_iterations - 1:
+                    if i == self.num_layers - 1:
                         # Let local representations interact with the global representations via self-interaction.
                         z = e3x.nn.TensorDense(
                             include_pseudotensors=False,
@@ -335,7 +350,7 @@ class EnergyModel(nn.Module):
                 x = e3x.nn.add(e3x.nn.add(x, y), y_nl)
 
                 if self.atomic_dipole_embedding or self.self_interaction:
-                    if i == self.num_iterations - 1:
+                    if i == self.num_layers - 1:
                         # Let local representations interact with the global representations via self-interaction.
                         z = e3x.nn.TensorDense(
                             include_pseudotensors=False,
@@ -411,10 +426,12 @@ class EnergyModel(nn.Module):
             positions,
             dst_idx,
             src_idx,
-            batch_segments=None,
-            graph_mask=None,
-            atomic_dipoles=None,
-            calculate_forces=True
+            batch_segments: Optional[Array] = None,
+            graph_mask: Optional[Array] = None,
+            lattice_vectors: Optional[Array] = None,
+            cell_offsets: Optional[Array] = None,
+            atomic_dipoles: Optional[Array] = None,
+            calculate_forces: bool = True
     ):
         if batch_segments is None:
             batch_segments = jnp.zeros_like(atomic_numbers)
@@ -429,6 +446,8 @@ class EnergyModel(nn.Module):
             (_, energy), forces = energy_and_forces(
                 atomic_numbers,
                 positions,
+                lattice_vectors,
+                cell_offsets,
                 atomic_dipoles,
                 dst_idx,
                 src_idx,
@@ -441,6 +460,8 @@ class EnergyModel(nn.Module):
             return self.energy(
                 atomic_numbers,
                 positions,
+                lattice_vectors,
+                cell_offsets,
                 atomic_dipoles,
                 dst_idx,
                 src_idx,

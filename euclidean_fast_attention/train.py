@@ -52,31 +52,27 @@ def run_training(config: ml_collections.ConfigDict, workdir):
             config, target_epochs=config.trainer.num_epochs
         )
         config.trainer['num_train_steps'] = num_train_steps
-    
-    if config.model.use_efa_block is True:
-        if config.model.era_max_length is None:
-            raise ValueError(
-                f'era_max_length must be specified. Received "None".'
-            )
 
     optimizer = from_config.create_optimizer_from_config(config=config)
     
     if config.model.name == 'base_model':
+        if config.model.era_use_in_iterations is not None:
+            if config.model.era_max_length is None:
+                raise ValueError(
+                    f'era_max_length must be specified. Received "None".'
+                )
         energy_model = from_config.create_base_model_from_config(config)
     elif config.model.name == 'schnet':
+        if config.model.use_efa_block is True:
+            if config.model.era_max_length is None:
+                raise ValueError(
+                    f'era_max_length must be specified. Received "None".'
+                )
         energy_model = from_config.create_schnet_from_config(config)
     else:
         raise ValueError(f"Unknown model_type: {config.model.name}")
 
     trainer = from_config.create_trainer_from_config(config=config)
-
-    writer = metric_writers.create_default_writer(
-        workdir, just_logging=jax.process_index() > 0
-    )
-
-    # writer.write_hparams(dict(config))
-    # writer.flush()
-    # writer.close()
 
     config_as_json = config.to_dict()
     with open(workdir / 'config.json', 'w') as f:
