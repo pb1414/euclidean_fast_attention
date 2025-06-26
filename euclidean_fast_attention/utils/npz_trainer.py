@@ -343,7 +343,7 @@ class NpzTrainer:
             cutoff = 1e6
 
         make_graph_tuple = functools.partial(
-            jraph_utils.create_graph_tuple, cutoff=cutoff
+            jraph_utils.create_graph_tuple, cutoff=cutoff, pbc_bool=self.pbc_bool
         )
 
         prepared_test_ds = map(make_graph_tuple, test_split)
