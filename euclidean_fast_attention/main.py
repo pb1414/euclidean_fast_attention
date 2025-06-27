@@ -32,7 +32,7 @@ _MODEL_CONFIG = config_flags.DEFINE_config_file(
 # Flag for the optimizer configuration file
 _OPTIMIZER_CONFIG = config_flags.DEFINE_config_file(
     'optimizer_config',
-    'configs/optimizer/default.py', # Must be specified
+    None, # Must be specified
     'Path to the model configuration file (e.g., configs/models/model_a_config.py).'
 )
 
@@ -59,7 +59,7 @@ def main(_):
     config.trainer = train_config
     config.model = model_config
     config.optimizer = opt_config
-    
+    print(config)
     print(f"\n--- Combined Configuration ---")
     print(config.to_json(indent=2))
 
