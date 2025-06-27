@@ -27,7 +27,8 @@ def get_config():
     config.zmax = 119
 
     # Euclidean Fast Attention (EFA) Block Parameters
-    config.use_efa_block = False
+    config.use_efa_block = True
+    config.emulate_era_block = False
     config.era_max_length = config_dict.placeholder(float)
     config.era_max_frequency = float(np.pi)
     config.era_qk_num_features = 16

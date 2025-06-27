@@ -91,6 +91,8 @@ class EnergyModel(nn.Module):
     era_v_num_features: Optional[int] = None
 
     output_is_zero_at_init: Optional[bool] = True
+    efa_block_behaves_like_identity_at_init: bool = True
+    mp_block_behaves_like_identity_at_init: bool = True
     use_switch: bool = True
 
     emulate_era_block: bool = False
@@ -102,6 +104,16 @@ class EnergyModel(nn.Module):
             self.last_layer_kernel_init = jax.nn.initializers.zeros
         else:
             self.last_layer_kernel_init = e3x.nn.modules.default_kernel_init
+
+        if self.efa_block_behaves_like_identity_at_init:
+            self.efa_last_layer_kernel_init = jax.nn.initializers.zeros
+        else:
+            self.efa_last_layer_kernel_init = e3x.nn.modules.default_kernel_init
+
+        if self.mp_block_behaves_like_identity_at_init:
+            self.mp_last_layer_kernel_init = jax.nn.initializers.zeros
+        else:
+            self.mp_last_layer_kernel_init = e3x.nn.modules.default_kernel_init
 
     def energy(
             self,
@@ -187,7 +199,7 @@ class EnergyModel(nn.Module):
                 y = e3x.nn.Dense(self.num_features)(y)
                 y = e3x.nn.silu(y)
                 y = e3x.nn.Dense(
-                    self.num_features, kernel_init=self.last_layer_kernel_init
+                    self.num_features, kernel_init=self.mp_last_layer_kernel_init
                 )(y)
 
                 # Apply non local interactions via EFA block.
@@ -198,7 +210,17 @@ class EnergyModel(nn.Module):
                         # Check if the EFA block should be emulated.
                         if self.emulate_era_block:
                             # Emulation of the EFA block via a Dense layer.
-                            y_nl = e3x.nn.Dense(self.num_features)(x)
+                            # Atom-wise refinement MLP for non local features.
+                            
+                            y_nl = e3x.nn.Dense(
+                                2 * self.era_qk_num_features + self.era_v_num_features
+                                )(
+                                    e3x.nn.change_max_degree_or_type(
+                                        x,
+                                        max_degree=0,
+                                        include_pseudotensors=False,
+                                    )
+                                )
                         else:
                             # Use the EFA block.
                             y_nl = fast_attention.EuclideanFastAttention(
@@ -235,7 +257,8 @@ class EnergyModel(nn.Module):
                         y_nl = e3x.nn.Dense(self.num_features)(y_nl)
                         y_nl = e3x.nn.silu(y_nl)
                         y_nl = e3x.nn.Dense(
-                            self.num_features, kernel_init=self.last_layer_kernel_init
+                            self.num_features, 
+                            kernel_init=self.efa_last_layer_kernel_init
                         )(y_nl)
 
                     else:
@@ -260,14 +283,20 @@ class EnergyModel(nn.Module):
                 y = e3x.nn.Dense(self.num_features)(y)
                 y = e3x.nn.silu(y)
                 y = e3x.nn.Dense(
-                    self.num_features, kernel_init=self.last_layer_kernel_init
+                    self.num_features, kernel_init=self.mp_last_layer_kernel_init
                 )(y)
 
                 # Apply non local interactions using Euclidean RoPE.
                 if self.era_use_in_iterations is not None:
                     if i in self.era_use_in_iterations:
                         if self.emulate_era_block:
-                            y_nl = e3x.nn.Dense(self.num_features)(x)
+                            # Emulation of the EFA block via a Dense layer.
+                            # Atom-wise refinement MLP for non local features.
+                            y_nl = e3x.nn.Dense(
+                                2 * self.era_qk_num_features + self.era_v_num_features
+                                )(
+                                    x
+                                )
                         else:
                             y_nl = fast_attention.EuclideanFastAttention(
                                 pbc_bool=self.pbc_bool,
@@ -303,7 +332,7 @@ class EnergyModel(nn.Module):
                         y_nl = e3x.nn.Dense(self.num_features)(y_nl)
                         y_nl = e3x.nn.silu(y_nl)
                         y_nl = e3x.nn.Dense(
-                            self.num_features, kernel_init=self.last_layer_kernel_init
+                            self.num_features, kernel_init=self.efa_last_layer_kernel_init
                         )(y_nl)
 
                     else:

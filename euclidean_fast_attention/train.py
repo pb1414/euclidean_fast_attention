@@ -6,6 +6,7 @@ from clu import metric_writers
 import pathlib
 import jax
 import ml_collections
+import wandb
 from orbax import checkpoint
 
 from euclidean_fast_attention.utils import from_config

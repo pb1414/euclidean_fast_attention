@@ -547,6 +547,17 @@ class NpzTrainer:
             # use params passed to the run method by creating a deep copy
             params = params.copy()
 
+        num_params = sum(x.size for x in jax.tree_util.tree_leaves(params))
+        
+        if self.use_wandb:
+            wandb.log(
+                data={'num_params': num_params}
+            )
+        else:
+            print(
+                f'Number of parameters: {num_params}'
+            )
+
         # initialize the optimizer state
         if opt_state is None:
             # initialize a fresh optimizer state

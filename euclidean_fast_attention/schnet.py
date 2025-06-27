@@ -68,6 +68,7 @@ class Interaction(nn.Module):
 class EFABlock(nn.Module):
     era_max_length: float
     pbc_bool: bool
+    era_emulate_bool: bool = False
     era_lebedev_num: int = 50
     era_max_frequency: float = jnp.pi
     era_qk_num_features: int = 16
@@ -91,22 +92,28 @@ class EFABlock(nn.Module):
             lattice_vectors,
     ):
         num_features = x.shape[-1]
-
-        y = EuclideanFastAttention(
-            num_features_qk=self.era_qk_num_features,
-            num_features_v=self.era_v_num_features,
-            activation_fn=self.era_activation_fn,
-            lebedev_num=self.era_lebedev_num,
-            epe_max_frequency=self.era_max_frequency,
-            epe_max_length=self.era_max_length,
-            pbc_bool=self.pbc_bool,
-        )(
-            x,
-            positions,
-            batch_segments,
-            graph_mask,
-            lattice_vectors=lattice_vectors
-        )
+        if self.era_emulate_bool == True:
+            y = EuclideanFastAttention(
+                num_features_qk=self.era_qk_num_features,
+                num_features_v=self.era_v_num_features,
+                activation_fn=self.era_activation_fn,
+                lebedev_num=self.era_lebedev_num,
+                epe_max_frequency=self.era_max_frequency,
+                epe_max_length=self.era_max_length,
+                pbc_bool=self.pbc_bool,
+            )(
+                x,
+                positions,
+                batch_segments,
+                graph_mask,
+                lattice_vectors=lattice_vectors
+            )
+        else:
+            y = e3x.nn.Dense(
+                2 * self.era_qk_num_features + self.era_v_num_features
+            )(
+                x
+            )
 
         # Atom-wise refinement MLP for non local features.
         y = e3x.nn.Dense(num_features)(y)
@@ -134,6 +141,7 @@ class SchNet(nn.Module):
     zmax: int = 119
 
     use_efa_block: bool = False
+    emulate_efa_block: bool = False
     
     efa_block_behaves_like_identity_at_init: bool = True
     era_lebedev_num: Optional[int] = None
@@ -159,6 +167,12 @@ class SchNet(nn.Module):
                     f"era_qk_num_features={self.era_qk_num_features}, "
                     f"era_v_num_features={self.era_v_num_features}, "
                     f"era_max_frequency={self.era_max_frequency}"
+                )
+        if self.emulate_efa_block == True:
+            if self.use_efa_block == False:
+                raise ValueError(
+                    f"If EFA block should be emulated it must be activated. "
+                    f"received {self.emulate_efa_block=} but {self.use_efa_block=}."
                 )
 
     def energy(
@@ -211,6 +225,8 @@ class SchNet(nn.Module):
 
         # Iterate MP steps.
         for i in range(self.num_layers):
+            
+            # Local interaction
             delta_x = Interaction()(
                 x=x,
                 rbf=rbf,
@@ -219,6 +235,7 @@ class SchNet(nn.Module):
                 src_idx=src_idx,
             )  # (num_nodes, num_features)
 
+            # EFA block.
             if self.use_efa_block:
                 x_nl = x[:, None, None]
                 x_nl = EFABlock(
@@ -227,6 +244,7 @@ class SchNet(nn.Module):
                     era_max_length=self.era_max_length,
                     era_qk_num_features=self.era_qk_num_features,
                     era_v_num_features=self.era_v_num_features,
+                    era_emulate_bool=self.emulate_efa_block,
                     behaves_like_identity_at_init=self.efa_block_behaves_like_identity_at_init,
                     pbc_bool=self.pbc_bool
                 )(
@@ -241,6 +259,7 @@ class SchNet(nn.Module):
             else:
                 x_nl = jnp.zeros_like(x)
 
+            # Skip around MP and EFA block.
             x = x + delta_x + x_nl
 
         num_features = x.shape[-1]
