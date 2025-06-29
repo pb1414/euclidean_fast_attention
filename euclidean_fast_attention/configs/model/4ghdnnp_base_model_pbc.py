@@ -30,7 +30,6 @@ def get_config():
     config.era_v_num_features = 32
     config.num_post_residual_mlps = 0
     config.use_switch = False
-    config.emulate_era_block = False
     config.iterated_tensor_products = False
 
     return config

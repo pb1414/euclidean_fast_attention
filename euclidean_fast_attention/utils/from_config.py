@@ -106,6 +106,7 @@ def create_trainer_from_config(config: ml_collections.ConfigDict):
         num_train=config.trainer.num_train,
         num_valid=config.trainer.num_valid,
         split_seed=config.trainer.split_seed,
+        model_seed=config.trainer.model_seed,
         num_epochs=config.trainer.num_epochs,
         save_interval_steps=config.trainer.save_interval_steps,
         max_num_nodes=config.trainer.max_num_nodes,
