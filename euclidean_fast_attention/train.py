@@ -2,17 +2,14 @@
 
 import json
 
-from clu import metric_writers
 import pathlib
-import jax
 import ml_collections
-import wandb
 from orbax import checkpoint
 
 from euclidean_fast_attention.utils import from_config
 
 
-def run_training(config: ml_collections.ConfigDict, workdir):
+def run_training(config: ml_collections.ConfigDict, workdir: str, auto_eval: bool = True):
     """Train and evaluate a model, given `config` and write to `workdir`.
 
   Args:
@@ -83,25 +80,26 @@ def run_training(config: ml_collections.ConfigDict, workdir):
         model=energy_model, optimizer=optimizer, ckpt_dir=workdir / 'checkpoint'
     )
 
-    # After training has finished, load the parameters from the best checkpoint.
-    loaded_mngr = checkpoint.CheckpointManager(
-        workdir / 'checkpoint',
-        {
-            'params': checkpoint.PyTreeCheckpointer(),
-            'opt_state': checkpoint.PyTreeCheckpointer(),
-        },
-        options=checkpoint.CheckpointManagerOptions(step_prefix='ckpt'),
-    )
-    mgr_state = loaded_mngr.restore(loaded_mngr.latest_step())
-    params = mgr_state.get('params')
+    if auto_eval == True:
+        # After training has finished, load the parameters from the best checkpoint.
+        loaded_mngr = checkpoint.CheckpointManager(
+            workdir / 'checkpoint',
+            {
+                'params': checkpoint.PyTreeCheckpointer(),
+                'opt_state': checkpoint.PyTreeCheckpointer(),
+            },
+            options=checkpoint.CheckpointManagerOptions(step_prefix='ckpt'),
+        )
+        mgr_state = loaded_mngr.restore(loaded_mngr.latest_step())
+        params = mgr_state.get('params')
 
-    # Calculate the metrics on the test split.
-    test_metrics, _ = trainer.run_testing(
-        model=energy_model,
-        params=params,
-        collect_predictions=False
-    )
+        # Calculate the metrics on the test split.
+        test_metrics, _ = trainer.run_testing(
+            model=energy_model,
+            params=params,
+            collect_predictions=False
+        )
 
-    # Dump the test metrics to json.
-    with open(workdir / 'test_metrics.json', 'w') as f:
-        json.dump(test_metrics, f)
+        # Dump the test metrics to json.
+        with open(workdir / 'test_metrics.json', 'w') as f:
+            json.dump(test_metrics, f)

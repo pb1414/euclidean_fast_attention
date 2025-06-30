@@ -26,5 +26,6 @@ def get_config():
     config.length_unit = units.Angstrom
     config.log_loss_every_steps = 50
     config.pbc_bool = False
+    config.auto_eval = True
 
     return config

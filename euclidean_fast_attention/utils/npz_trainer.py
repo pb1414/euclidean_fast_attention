@@ -316,7 +316,7 @@ class NpzTrainer:
 
         if not subtract_energy_mean:
             energy_mean = 0.
-
+        
         test_split = map(
             functools.partial(
                 convert_to_angstrom, conversion_factor=self.length_unit

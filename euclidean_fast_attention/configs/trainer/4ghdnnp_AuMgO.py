@@ -25,5 +25,5 @@ def get_config():
     config.energy_unit = units.eV
     config.length_unit = units.Angstrom
     config.pbc_bool = True
-
+    config.auto_eval = True
     return config

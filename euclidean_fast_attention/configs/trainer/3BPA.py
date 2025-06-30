@@ -11,20 +11,20 @@ def get_config():
     config = ml_collections.ConfigDict()
     
     config.datafile = config_dict.placeholder(str)
-    config.num_train = 200
+    config.num_train = 450
     config.num_valid = 50
     config.split_seed = 0
     config.model_seed = 0
-    config.max_num_nodes = 4 * 33 + 1
-    config.max_num_edges = 4 * 33 * 25 + 1
-    config.max_num_graphs = 4 + 1
+    config.max_num_nodes = 2 * 27 + 1
+    config.max_num_edges = 2 * 27 * 20 + 1
+    config.max_num_graphs = 2 + 1
     config.num_epochs = None
-    config.num_train_steps = 250_000
+    config.num_train_steps = 500_000
     config.save_interval_steps = 5000
     config.log_loss_every_steps = 500
     config.energy_unit = units.eV
     config.length_unit = units.Angstrom
-    config.pbc_bool = True
-    config.auto_eval = True
+    config.pbc_bool = False
+    config.auto_eval = False
 
     return config

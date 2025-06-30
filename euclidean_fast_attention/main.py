@@ -79,7 +79,8 @@ def main(_):
 
     run_training(
         config=config,
-        workdir=config.workdir
+        workdir=config.workdir,
+        auto_eval=config.trainer.auto_eval
     )
 
 if __name__ == '__main__':
