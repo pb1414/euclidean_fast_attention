@@ -10,6 +10,8 @@ def get_config():
     """Get the default hyperparameter configuration."""
     config = ml_collections.ConfigDict()
 
+    config.name = 'schnet'
+    
     # Model Architecture Parameters
     config.num_layers = 3
     config.num_features = 128
