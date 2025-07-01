@@ -26,5 +26,6 @@ def get_config():
     config.length_unit = units.Angstrom
     config.pbc_bool = False
     config.auto_eval = True
+    config.subtract_energy_mean = True
 
     return config
