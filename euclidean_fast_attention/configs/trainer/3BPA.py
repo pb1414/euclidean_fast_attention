@@ -15,9 +15,9 @@ def get_config():
     config.num_valid = 50
     config.split_seed = 0
     config.model_seed = 0
-    config.max_num_nodes = 2 * 27 + 1
-    config.max_num_edges = 2 * 27 * 20 + 1
-    config.max_num_graphs = 2 + 1
+    config.max_num_nodes = 5 * 27 + 1
+    config.max_num_edges = 5 * 27 * 20 + 1
+    config.max_num_graphs = 5 + 1
     config.num_epochs = None
     config.num_train_steps = 500_000
     config.save_interval_steps = 5000
