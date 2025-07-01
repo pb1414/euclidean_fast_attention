@@ -19,7 +19,7 @@ def get_config(split: str):
     config.max_num_edges = 4 * number_of_atoms_lookup[split] * (number_of_atoms_lookup[split] - 1) + 1
     config.max_num_graphs = 4 + 1
     config.num_epochs = None
-    config.num_train_steps = 1_250_000
+    config.num_train_steps = 1_000_000
     config.save_interval_steps = 5000
     config.log_loss_every_steps = 500
     config.energy_unit = units.eV
