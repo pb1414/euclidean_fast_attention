@@ -93,6 +93,12 @@ class EFABlock(nn.Module):
     ):
         num_features = x.shape[-1]
         if self.era_emulate_bool == True:
+            y = e3x.nn.Dense(
+                2 * self.era_qk_num_features + self.era_v_num_features
+            )(
+                x
+            )
+        else:
             y = EuclideanFastAttention(
                 num_features_qk=self.era_qk_num_features,
                 num_features_v=self.era_v_num_features,
@@ -108,13 +114,6 @@ class EFABlock(nn.Module):
                 graph_mask,
                 lattice_vectors=lattice_vectors
             )
-        else:
-            y = e3x.nn.Dense(
-                2 * self.era_qk_num_features + self.era_v_num_features
-            )(
-                x
-            )
-
         # Atom-wise refinement MLP for non local features.
         y = e3x.nn.Dense(num_features)(y)
         y = e3x.nn.silu(y)
