@@ -12,6 +12,7 @@ import wandb
 
 from orbax import checkpoint
 from typing import Any
+from typing import Optional
 
 from . import training_utils
 from . import jraph_utils
@@ -228,6 +229,8 @@ class NpzTrainer:
 
     pbc_bool: bool = False
 
+    neighbor_list_cutoff: Optional[float] = None
+
     def prepare_training_and_validation_data(self, cutoff=None, shuffle=True):
         """Prepare training and validation data.
 
@@ -290,8 +293,19 @@ class NpzTrainer:
             )
             cutoff = 1e6
 
+        if self.neighbor_list_cutoff is None:
+            neighbor_list_cutoff = cutoff
+        else:
+            if self.neighbor_list_cutoff < cutoff:
+                raise ValueError(
+                    f'neighbor_list_cutoff in Trainer must be greater than model cutoff.'
+                    f'Received {self.neighbor_list_cutoff=}, {cutoff=}.'
+                )
+            
+            neighbor_list_cutoff = self.neighbor_list_cutoff
+
         make_graph_tuple = functools.partial(
-            jraph_utils.create_graph_tuple, cutoff=cutoff, pbc_bool=self.pbc_bool
+            jraph_utils.create_graph_tuple, cutoff=neighbor_list_cutoff, pbc_bool=self.pbc_bool
         )
 
         prepared_train_ds = map(make_graph_tuple, train_split)
@@ -341,9 +355,20 @@ class NpzTrainer:
                 ' computational overhead.'
             )
             cutoff = 1e6
+        
+        if self.neighbor_list_cutoff is None:
+            neighbor_list_cutoff = cutoff
+        else:
+            if self.neighbor_list_cutoff < cutoff:
+                raise ValueError(
+                    f'neighbor_list_cutoff in Trainer must be greater than model cutoff.'
+                    f'Received {self.neighbor_list_cutoff=}, {cutoff=}.'
+                )
+            
+            neighbor_list_cutoff = self.neighbor_list_cutoff
 
         make_graph_tuple = functools.partial(
-            jraph_utils.create_graph_tuple, cutoff=cutoff, pbc_bool=self.pbc_bool
+            jraph_utils.create_graph_tuple, cutoff=neighbor_list_cutoff, pbc_bool=self.pbc_bool
         )
 
         prepared_test_ds = map(make_graph_tuple, test_split)

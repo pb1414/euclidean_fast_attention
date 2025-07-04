@@ -13,6 +13,7 @@ from typing import Optional
 from typing import Sequence
 
 from . import fast_attention
+from . import dispersion
 from .utils import space_utils
 
 Array = jaxtyping.Array
@@ -51,6 +52,7 @@ class EnergyModel(nn.Module):
     emulate_era_block: Emulate the ERA block, without actually using the
     core operation. This is, to get a local model with the same computational
     flow and just the core eucliddean rope attention mechanism removed.
+    dispersion_correction_bool: Use dispersion correction.
     zmax: Maximal atomic number.
     """
 
@@ -95,6 +97,7 @@ class EnergyModel(nn.Module):
     mp_block_behaves_like_identity_at_init: bool = True
     use_switch: bool = True
 
+    dispersion_correction_bool: bool = False
     emulate_era_block: bool = False
 
     zmax: int = 118
@@ -434,6 +437,21 @@ class EnergyModel(nn.Module):
         energy = jax.ops.segment_sum(
             atomic_energies, segment_ids=batch_segments, num_segments=num_graphs
         )
+
+        if self.dispersion_correction_bool == True:
+            dispersion_energy = dispersion.DispersionEnergy(
+                model_cutoff=self.cutoff,
+                pbc_bool=self.pbc_bool,
+            )(
+                x=x,
+                atomic_numbers=atomic_numbers,
+                positions=positions,
+                dst_idx=dst_idx,
+                src_idx=src_idx,
+                batch_segments=batch_segments,
+                graph_mask=graph_mask,
+            )
+            energy += dispersion_energy
 
         # For padded graphs set energies to zero.
         energy = jnp.where(graph_mask, energy, 0)

@@ -27,5 +27,6 @@ def get_config():
     config.pbc_bool = False
     config.auto_eval = False
     config.subtract_energy_mean = False
+    config.neighbor_list_cutoff = None
 
     return config
