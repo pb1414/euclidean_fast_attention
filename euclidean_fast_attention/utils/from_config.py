@@ -116,6 +116,7 @@ def create_trainer_from_config(config: ml_collections.ConfigDict):
         length_unit=config.trainer.length_unit,
         pbc_bool=config.trainer.pbc_bool,
         subtract_energy_mean=config.trainer.subtract_energy_mean,
+        neighbor_list_cutoff=config.trainer.neighbor_list_cutoff,
     )
 
 
