@@ -61,22 +61,23 @@ def create_base_model_from_config(config: ml_collections.ConfigDict):
 
   """
     model_config = dict(config.model)
+    if model_config["era_use_in_iterations"] is not None:
+        if model_config["era_activation_fn"] == "identity":
+            era_activation_fn = lambda u: u
+        else:
+            era_activation_fn = getattr(e3x.nn, model_config["era_activation_fn"])
 
-    if model_config["era_activation_fn"] == "identity":
-        era_activation_fn = lambda u: u
-    else:
-        era_activation_fn = getattr(e3x.nn, model_config["era_activation_fn"])
+        era_use_in_iterations = model_config["era_use_in_iterations"].split()
+        era_use_in_iterations = list(map(int, era_use_in_iterations))
+        if len(era_use_in_iterations) == 0:
+            era_use_in_iterations = None
+        else:
+            # era_use_in_iterations starts at index 0.
+            assert max(era_use_in_iterations) < model_config["num_layers"]
 
-    era_use_in_iterations = model_config["era_use_in_iterations"].split()
-    era_use_in_iterations = list(map(int, era_use_in_iterations))
-    if len(era_use_in_iterations) == 0:
-        era_use_in_iterations = None
-    else:
-        # era_use_in_iterations starts at index 0.
-        assert max(era_use_in_iterations) < model_config["num_layers"]
+        model_config["era_activation_fn"] = era_activation_fn
+        model_config["era_use_in_iterations"] = era_use_in_iterations
 
-    model_config["era_activation_fn"] = era_activation_fn
-    model_config["era_use_in_iterations"] = era_use_in_iterations
     model_config['pbc_bool'] = config.trainer.pbc_bool
 
     return model.EnergyModel(**model_config)
