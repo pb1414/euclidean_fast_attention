@@ -35,7 +35,7 @@ def get_config(split: str):
     config.era_v_num_features = 32
     config.era_lebedev_num = 50
     config.efa_block_behaves_like_identity_at_init = True
-    config.efa_block_mlp_hidden_features = None
+    config.efa_block_mlp_hidden_features = config_dict.placeholder(int)
     
     return config
 
