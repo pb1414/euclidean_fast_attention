@@ -22,7 +22,7 @@ def get_config():
     
     # Radial Basis Function Parameters
     config.radial_basis_fn = 'exponential_bernstein'
-    config.num_basis_fn = 64
+    config.num_basis_fn = 32
 
     # Atomic Number / Element Range
     config.zmax = 119

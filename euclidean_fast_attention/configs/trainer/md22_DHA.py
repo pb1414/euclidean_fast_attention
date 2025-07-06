@@ -11,18 +11,18 @@ def get_config():
     config = ml_collections.ConfigDict()
     
     config.datafile = config_dict.placeholder(str)
-    config.num_train = config_dict.placeholder(int)
+    config.num_train = 8_000
     config.num_valid = 500
     config.split_seed = 0
     config.model_seed = 0
-    config.max_num_nodes = config_dict.placeholder(int)
-    config.max_num_edges = config_dict.placeholder(int)
-    config.max_num_graphs = config_dict.placeholder(int)
-    config.num_epochs = 1000
-    config.num_train_steps = config_dict.placeholder(int)
+    config.max_num_nodes = 8 * 56 + 1
+    config.max_num_edges = 8 * 56 * 30 + 1  # works for cutoff 4.0, 5.0, 6.0
+    config.max_num_graphs = 8 + 1
+    config.num_epochs = None
+    config.num_train_steps = 1_000_000
     config.save_interval_steps = 5000
     config.log_loss_every_steps = 500
-    config.energy_unit = units.kcal / units.mol
+    config.energy_unit = units.eV
     config.length_unit = units.Angstrom
     config.log_loss_every_steps = 50
     config.pbc_bool = False

@@ -5,7 +5,7 @@ import numpy as np
 from ml_collections import config_dict
 
 
-def get_config():
+def get_config(split: str):
     """Get the default hyperparameter configuration."""
 
     config = config_dict.ConfigDict()
@@ -21,7 +21,7 @@ def get_config():
 
     # Radial Basis Function Parameters
     config.radial_basis_fn = 'exponential_bernstein'
-    config.num_basis_fn = 64
+    config.num_basis_fn = 32
 
     # Atomic Number / Element Range
     config.zmax = 119
@@ -29,7 +29,7 @@ def get_config():
     # Euclidean Fast Attention (EFA) Block Parameters
     config.use_efa_block = True
     config.emulate_efa_block = False
-    config.era_max_length = config_dict.placeholder(float)
+    config.era_max_length = max_length_lookup[split]
     config.era_max_frequency = float(np.pi)
     config.era_qk_num_features = 16
     config.era_v_num_features = 32
@@ -38,3 +38,13 @@ def get_config():
     
     return config
 
+
+max_length_lookup = {
+    "AT_AT": 22.0,
+    "AT_AT_CG_CG": 24.0,
+    "AcAla3NHMe": 12.0,
+    "DHA": 16.0,
+    "buckyball_catcher": 15.0,
+    "nanotube": 33.0,
+    "stachyose": 14.0,
+}
