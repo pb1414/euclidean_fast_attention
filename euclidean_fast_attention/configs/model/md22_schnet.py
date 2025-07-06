@@ -13,7 +13,7 @@ def get_config(split: str):
     config.name = 'schnet'
 
     # Model Architecture Parameters
-    config.num_layers = 2
+    config.num_layers = 3
     config.num_features = 128
 
     # Interaction Parameters
