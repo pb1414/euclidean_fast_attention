@@ -68,6 +68,7 @@ class Interaction(nn.Module):
 class EFABlock(nn.Module):
     era_max_length: float
     pbc_bool: bool
+    mlp_hidden_features: Optional[int] = None
     era_emulate_bool: bool = False
     era_lebedev_num: int = 50
     era_max_frequency: float = jnp.pi
@@ -115,13 +116,14 @@ class EFABlock(nn.Module):
                 lattice_vectors=lattice_vectors
             )
         # Atom-wise refinement MLP for non local features.
-        y = e3x.nn.Dense(num_features)(y)
+        if self.mlp_hidden_features is not None:
+            mlp_hidden_features = self.mlp_hidden_features
+        else:
+            mlp_hidden_features = num_features
+        
+        y = e3x.nn.Dense(mlp_hidden_features)(y)
         y = e3x.nn.silu(y)
-        y = e3x.nn.Dense(
-            num_features, kernel_init=self.last_layer_kernel_init_fn
-        )(
-            y
-        )
+        y = e3x.nn.Dense(num_features, kernel_init=self.last_layer_kernel_init_fn)(y)
 
         return y
 
@@ -143,6 +145,7 @@ class SchNet(nn.Module):
     emulate_efa_block: bool = False
     
     efa_block_behaves_like_identity_at_init: bool = True
+    efa_block_mlp_hidden_features: Optional[int] = None
     era_lebedev_num: Optional[int] = None
     era_max_frequency: Optional[float] = None
     era_max_length: Optional[float] = None
@@ -245,7 +248,8 @@ class SchNet(nn.Module):
                     era_v_num_features=self.era_v_num_features,
                     era_emulate_bool=self.emulate_efa_block,
                     behaves_like_identity_at_init=self.efa_block_behaves_like_identity_at_init,
-                    pbc_bool=self.pbc_bool
+                    pbc_bool=self.pbc_bool,
+                    mlp_hidden_features=self.efa_block_mlp_hidden_features,
                 )(
                     x=x_nl,
                     positions=positions,
