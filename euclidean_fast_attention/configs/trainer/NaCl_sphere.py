@@ -6,7 +6,7 @@ from ase import units
 from ml_collections import config_dict
 
 
-def get_config(num_atoms: int):
+def get_config(num_atoms: str):
     """Get the default hyperparameter configuration."""
     config = ml_collections.ConfigDict()
     
@@ -15,8 +15,8 @@ def get_config(num_atoms: int):
     config.num_valid = 500
     config.split_seed = 0
     config.model_seed = 0
-    config.max_num_nodes = 16 * num_atoms + 1
-    config.max_num_edges = 16 * num_atoms * avg_num_neighbors_lookup[num_atoms] + 1
+    config.max_num_nodes = 16 * int(num_atoms) + 1
+    config.max_num_edges = 16 * int(num_atoms) * avg_num_neighbors_lookup[int(num_atoms)] + 1
     config.max_num_graphs = 16 + 1
     config.num_epochs = None
     config.num_train_steps = 500_000
