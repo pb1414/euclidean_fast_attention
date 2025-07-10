@@ -5,6 +5,7 @@ import json
 import pathlib
 import ml_collections
 import logging
+import numpy as np
 from orbax import checkpoint
 from typing import Optional
 
@@ -14,7 +15,8 @@ from euclidean_fast_attention.utils import from_config
 def run_evaluation(
     workdir: str, 
     eval_name: str,
-    datafile: Optional[str] = None
+    datafile: Optional[str] = None,
+    collect_predictions: bool = False
 ):
     """Evaluate a model, given `workdir` and `eval_name`.
 
@@ -83,13 +85,27 @@ def run_evaluation(
     params = mgr_state.get('params')
 
     # Calculate the metrics on the test split.
-    test_metrics, _ = trainer.run_testing(
+    test_metrics, (energy_predictions, forces_predictions, energy_gt, forces_gt, graphs) = trainer.run_testing(
         model=energy_model,
         params=params,
-        collect_predictions=False,
+        collect_predictions=collect_predictions,
         
     )
 
     # Dump the test metrics to json.
     with open(workdir / f'{eval_name}_metrics.json', 'w') as f:
         json.dump(test_metrics, f)
+
+    if collect_predictions == True:
+        energy_predictions = np.concatenate(energy_predictions, axis=0)
+        forces_predictions = np.concatenate(forces_predictions, axis=0)
+        energy_gt = np.concatenate(energy_gt, axis=0)
+        forces_gt = np.concatenate(forces_gt, axis=0)
+
+        np.savez(
+            f'{workdir}/predictions_{eval_name}.npz',
+            energy_predictions=energy_predictions,
+            forces_predictions=forces_predictions,
+            energy_gt=energy_gt,
+            forces_gt=forces_gt,
+        )

@@ -484,10 +484,10 @@ class NpzTrainer:
                 forces, inputs['forces'], msk=batch_segments_dict['node_mask']
             )]
             if collect_predictions:
-                energy_predictions += [energy]
-                forces_predictions += [forces]
-                energy_gt += [inputs['energy']]
-                forces_gt += [inputs['forces']]
+                energy_predictions += [energy[batch_segments_dict['graph_mask']]]
+                forces_predictions += [forces[batch_segments_dict['node_mask']]]
+                energy_gt += [inputs['energy'][batch_segments_dict['graph_mask']]]
+                forces_gt += [inputs['forces'][batch_segments_dict['node_mask']]]
                 graphs += [graph_batch]
             # eval_metrics_list += [eval_step_fn(params, inputs)]
             running_num_of_evaluated_structures += batch_segments_dict[

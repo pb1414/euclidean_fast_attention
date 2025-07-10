@@ -7,6 +7,7 @@ FLAGS = flags.FLAGS
 flags.DEFINE_string('workdir', None, 'Workdir of the current run.')
 flags.DEFINE_string('datafile', None, 'Path to the data file to evaluate.')
 flags.DEFINE_string('eval_name', None, 'Name of the evaluation.')
+flags.DEFINE_bool('collect_predictions', False, 'Collect predictions.')
 
 def main(_):
     if FLAGS.workdir is None:
@@ -16,7 +17,8 @@ def main(_):
     run_evaluation(
         workdir=FLAGS.workdir,
         eval_name=FLAGS.eval_name,
-        datafile=FLAGS.datafile
+        datafile=FLAGS.datafile,
+        collect_predictions=FLAGS.collect_predictions
     )
 
 if __name__ == '__main__':
