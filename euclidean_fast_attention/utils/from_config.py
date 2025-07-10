@@ -115,6 +115,8 @@ def create_trainer_from_config(config: ml_collections.ConfigDict):
         max_num_graphs=config.trainer.max_num_graphs,
         energy_unit=config.trainer.energy_unit,
         length_unit=config.trainer.length_unit,
+        energy_weight=config.trainer.energy_weight,
+        forces_weight=config.trainer.forces_weight,
         pbc_bool=config.trainer.pbc_bool,
         subtract_energy_mean=config.trainer.subtract_energy_mean,
         neighbor_list_cutoff=config.trainer.neighbor_list_cutoff,
