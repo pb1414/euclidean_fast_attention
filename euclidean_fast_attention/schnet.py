@@ -111,7 +111,7 @@ class EFABlock(nn.Module):
                 epe_max_length=self.era_max_length,
                 pbc_bool=self.pbc_bool,
             )(
-                nn.LayerNorm()(x) if self.layer_normalization_bool == True else x,
+                x,#nn.LayerNorm()(x) if self.layer_normalization_bool == True else x,
                 positions,
                 batch_segments,
                 graph_mask,
@@ -126,18 +126,24 @@ class EFABlock(nn.Module):
         # Skip around EFA block.
         x = e3x.nn.add(x, y_att)
 
+        if self.layer_normalization_bool:
+            x = nn.LayerNorm()(x)
+    
         # Atom-wise refinement MLP for non local features.
         if self.mlp_hidden_features is not None:
             mlp_hidden_features = self.mlp_hidden_features
         else:
             mlp_hidden_features = num_features
 
-        y_mlp = e3x.nn.Dense(mlp_hidden_features)(nn.LayerNorm()(x) if self.layer_normalization_bool == True else x)
+        y_mlp = e3x.nn.Dense(mlp_hidden_features)(x)
         y_mlp = e3x.nn.silu(y_mlp)
         y_mlp = e3x.nn.Dense(num_features, kernel_init=self.last_layer_kernel_init_fn)(y_mlp)
 
         # Skip around MLP.
         x = e3x.nn.add(x, y_mlp)
+
+        if self.layer_normalization_bool:
+            x = nn.LayerNorm()(x)
 
         return x
 

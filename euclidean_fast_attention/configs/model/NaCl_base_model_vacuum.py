@@ -4,7 +4,7 @@ import numpy as np
 import ml_collections
 
 
-def get_config():
+def get_config(num_atoms: str):
     """Get the default hyperparameter configuration."""
 
     config = ml_collections.ConfigDict()
@@ -20,16 +20,26 @@ def get_config():
     config.era_use_in_iterations = "0 1"
     config.era_max_degree = 0
     config.era_include_pseudotensors = False
-    config.era_activation_fn = 'gelu'
+    config.era_activation_fn = 'identity'
     config.era_num_frequencies = None
     config.era_max_frequency = float(3*np.pi)
     config.era_max_length = 50.0
     config.era_lebedev_num = 146
     config.era_qk_num_features = 16
-    config.era_v_num_features = 32
+    config.era_v_num_features = 16
     config.num_post_residual_mlps = 0
     config.use_switch = False
     config.iterated_tensor_products = False
     config.dispersion_correction_bool = False
     
     return config
+
+def calculate_num_features(num_atoms: str, base_num_features: int = 16, base_num_atoms: int = 16):
+    num_atoms_int = int(num_atoms)
+
+    # Logarithmically increase the features with the number of atoms and round to the next integer
+    num_features = np.floor(
+        1 + base_num_features * np.log(num_atoms_int / base_num_atoms)
+    ).item()
+
+    return int(num_features)

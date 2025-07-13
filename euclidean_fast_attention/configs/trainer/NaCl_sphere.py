@@ -15,9 +15,9 @@ def get_config(num_atoms: str):
     config.num_valid = 500
     config.split_seed = 0
     config.model_seed = 0
-    config.max_num_nodes = 16 * int(num_atoms) + 1
-    config.max_num_edges = 16 * int(num_atoms) * avg_num_neighbors_lookup[int(num_atoms)] + 1
-    config.max_num_graphs = 16 + 1
+    config.max_num_nodes = 2 * int(num_atoms) + 1
+    config.max_num_edges = 2 * int(num_atoms) * avg_num_neighbors_lookup[int(num_atoms)] + 1
+    config.max_num_graphs = 2 + 1
     config.num_epochs = None
     config.num_train_steps = 500_000
     config.save_interval_steps = 5_000
@@ -27,8 +27,8 @@ def get_config(num_atoms: str):
     config.pbc_bool = False
     config.auto_eval = True
     config.subtract_energy_mean = True
-    config.energy_weight = 0.01
-    config.forces_weight = 0.99
+    config.energy_weight = 0.001
+    config.forces_weight = 0.999
     config.neighbor_list_cutoff = config_dict.placeholder(float)
 
     return config
