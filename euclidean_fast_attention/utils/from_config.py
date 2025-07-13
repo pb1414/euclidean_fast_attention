@@ -84,7 +84,9 @@ def create_base_model_from_config(config: ml_collections.ConfigDict):
 
 
 def create_schnet_from_config(config: ml_collections.ConfigDict):
-
+    
+    model_config = dict(config.model)
+    
     if model_config["use_efa_block"] == True:
         if model_config["era_activation_fn"] == "identity":
             era_activation_fn = lambda u: u
@@ -93,7 +95,6 @@ def create_schnet_from_config(config: ml_collections.ConfigDict):
         
         model_config["era_activation_fn"] = era_activation_fn
     
-    model_config = dict(config.model)
     model_config['pbc_bool'] = config.trainer.pbc_bool
     
     return schnet.SchNet(**model_config)
