@@ -28,7 +28,9 @@ def get_config(split: str):
     config.pbc_bool = False
     config.auto_eval = True
     config.subtract_energy_mean = True
-    config.neighbor_list_cutoff = None
+    config.energy_weight = 0.01
+    config.forces_weight = 0.99
+    config.neighbor_list_cutoff = config_dict.placeholder(float)
 
     return config
 

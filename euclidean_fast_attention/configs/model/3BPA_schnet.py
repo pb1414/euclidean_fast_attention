@@ -19,7 +19,7 @@ def get_config():
 
     # Radial Basis Function Parameters
     config.radial_basis_fn = 'exponential_bernstein'
-    config.num_basis_fn = 64
+    config.num_basis_fn = 32
 
     # Atomic Number / Element Range
     config.zmax = 119
@@ -32,6 +32,9 @@ def get_config():
     config.era_qk_num_features = 16
     config.era_v_num_features = 32
     config.era_lebedev_num = 50
+    config.era_activation_fn = 'identity'
+    config.efa_block_layer_normalization_bool = True
     config.efa_block_behaves_like_identity_at_init = True
-
+    config.efa_block_mlp_hidden_features = config_dict.placeholder(int)
+    
     return config
