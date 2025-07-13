@@ -2,6 +2,7 @@
 
 import numpy as np
 import ml_collections
+from ml_collections import config_dict
 
 
 def get_config():
