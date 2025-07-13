@@ -24,7 +24,6 @@ def get_config():
     config.log_loss_every_steps = 500
     config.energy_unit = units.eV
     config.length_unit = units.Angstrom
-    config.log_loss_every_steps = 50
     config.pbc_bool = False
     config.auto_eval = True
     config.subtract_energy_mean = True
