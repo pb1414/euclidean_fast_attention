@@ -69,6 +69,7 @@ class EFABlock(nn.Module):
     era_max_length: float
     pbc_bool: bool
     mlp_hidden_features: Optional[int] = None
+    layer_normalization_bool: bool = False
     era_emulate_bool: bool = False
     era_lebedev_num: int = 50
     era_max_frequency: float = jnp.pi
@@ -92,15 +93,16 @@ class EFABlock(nn.Module):
             graph_mask,
             lattice_vectors,
     ):
+
         num_features = x.shape[-1]
         if self.era_emulate_bool == True:
-            y = e3x.nn.Dense(
+            y_att = e3x.nn.Dense(
                 2 * self.era_qk_num_features + self.era_v_num_features
             )(
                 x
             )
         else:
-            y = EuclideanFastAttention(
+            y_att = EuclideanFastAttention(
                 num_features_qk=self.era_qk_num_features,
                 num_features_v=self.era_v_num_features,
                 activation_fn=self.era_activation_fn,
@@ -109,23 +111,35 @@ class EFABlock(nn.Module):
                 epe_max_length=self.era_max_length,
                 pbc_bool=self.pbc_bool,
             )(
-                x,
+                nn.LayerNorm()(x) if self.layer_normalization_bool == True else x,
                 positions,
                 batch_segments,
                 graph_mask,
                 lattice_vectors=lattice_vectors
             )
+
+        y_att = e3x.nn.Dense(
+            num_features, 
+            kernel_init=self.last_layer_kernel_init_fn
+        )(y_att)
+
+        # Skip around EFA block.
+        x = e3x.nn.add(x, y_att)
+
         # Atom-wise refinement MLP for non local features.
         if self.mlp_hidden_features is not None:
             mlp_hidden_features = self.mlp_hidden_features
         else:
             mlp_hidden_features = num_features
-        
-        y = e3x.nn.Dense(mlp_hidden_features)(y)
-        y = e3x.nn.silu(y)
-        y = e3x.nn.Dense(num_features, kernel_init=self.last_layer_kernel_init_fn)(y)
 
-        return y
+        y_mlp = e3x.nn.Dense(mlp_hidden_features)(nn.LayerNorm()(x) if self.layer_normalization_bool == True else x)
+        y_mlp = e3x.nn.silu(y_mlp)
+        y_mlp = e3x.nn.Dense(num_features, kernel_init=self.last_layer_kernel_init_fn)(y_mlp)
+
+        # Skip around MLP.
+        x = e3x.nn.add(x, y_mlp)
+
+        return x
 
 
 class SchNet(nn.Module):
@@ -145,12 +159,14 @@ class SchNet(nn.Module):
     emulate_efa_block: bool = False
     
     efa_block_behaves_like_identity_at_init: bool = True
+    efa_block_layer_normalization_bool: bool = False
     efa_block_mlp_hidden_features: Optional[int] = None
     era_lebedev_num: Optional[int] = None
     era_max_frequency: Optional[float] = None
     era_max_length: Optional[float] = None
     era_qk_num_features: Optional[int] = None
     era_v_num_features: Optional[int] = None
+    era_activation_fn: Optional[Callable] = None
 
     def setup(self):
         if self.use_efa_block:
@@ -160,6 +176,8 @@ class SchNet(nn.Module):
                 assert self.era_qk_num_features is not None
                 assert self.era_v_num_features is not None
                 assert self.era_max_frequency is not None
+                assert self.efa_block_layer_normalization_bool is not None
+                assert self.era_activation_fn is not None
             except AssertionError:
                 raise ValueError(
                     "If use_efa_block is True, all EFA block parameters must be specified."
@@ -168,6 +186,8 @@ class SchNet(nn.Module):
                     f"era_max_length={self.era_max_length}, "
                     f"era_qk_num_features={self.era_qk_num_features}, "
                     f"era_v_num_features={self.era_v_num_features}, "
+                    f"efa_block_layer_normlization_bool={self.efa_block_layer_normlization_bool}"
+                    f"era_activation_fn={self.era_activation_fn}"
                     f"era_max_frequency={self.era_max_frequency}"
                 )
         if self.emulate_efa_block == True:
@@ -250,6 +270,8 @@ class SchNet(nn.Module):
                     behaves_like_identity_at_init=self.efa_block_behaves_like_identity_at_init,
                     pbc_bool=self.pbc_bool,
                     mlp_hidden_features=self.efa_block_mlp_hidden_features,
+                    layer_normalization_bool=self.efa_block_layer_normalization_bool,
+                    era_activation_fn=self.era_activation_fn
                 )(
                     x=x_nl,
                     positions=positions,
