@@ -12,5 +12,6 @@ def get_config():
     config.schedule = "exponential_decay"
     config.stop_learning_rate = 1e-5
     config.clip_by_global_norm = config_dict.placeholder(float)
+    config.eps = config_dict.placeholder(float)
 
     return config

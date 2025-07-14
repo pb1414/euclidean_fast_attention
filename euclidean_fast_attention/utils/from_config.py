@@ -38,12 +38,14 @@ def create_optimizer_from_config(
         else optax.identity()
     )
 
+    opt_eps = 1e-8 if config.optimizer.eps is None else config.optimizer.eps
+
     @optax.inject_hyperparams
     def optimizer_fn(learning_rate):
         chain = [
             optax.zero_nans(),  # TODO(b/296999153) Can we avoid this?
             maybe_clip_by_global_norm,
-            base_optimizer_fn(learning_rate=learning_rate),
+            base_optimizer_fn(learning_rate=learning_rate, eps=opt_eps),
         ]
         return optax.chain(*chain)
 
