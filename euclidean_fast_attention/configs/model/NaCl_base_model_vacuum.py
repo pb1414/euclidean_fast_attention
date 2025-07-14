@@ -42,4 +42,10 @@ def calculate_num_features(num_atoms: str, base_num_features: int = 16, base_num
         1 + base_num_features * np.log(num_atoms_int / base_num_atoms)
     ).item()
 
-    return int(num_features)
+    num_features = int(num_features)
+
+    # Ensure num_features is always even
+    if num_features % 2 != 0:
+        num_features += 1
+
+    return num_features
