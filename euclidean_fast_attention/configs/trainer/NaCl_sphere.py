@@ -19,7 +19,7 @@ def get_config(num_atoms: str):
     config.max_num_edges = 2 * int(num_atoms) * avg_num_neighbors_lookup[int(num_atoms)] + 1
     config.max_num_graphs = 2 + 1
     config.num_epochs = None
-    config.num_train_steps = 500_000
+    config.num_train_steps = 1_000_000
     config.save_interval_steps = 5_000
     config.log_loss_every_steps = 500
     config.energy_unit = units.eV
@@ -41,4 +41,5 @@ avg_num_neighbors_lookup = {
     64: 3,
     128: 3,
     256: 5,
+    512: 7
 }
