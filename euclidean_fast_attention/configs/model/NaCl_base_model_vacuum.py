@@ -25,8 +25,8 @@ def get_config(num_atoms: str):
     config.era_max_frequency = float(3*np.pi)
     config.era_max_length = 50.0
     config.era_lebedev_num = 146
-    config.era_qk_num_features = 16
-    config.era_v_num_features = 16
+    config.era_qk_num_features = calculate_num_features(num_atoms)
+    config.era_v_num_features = calculate_num_features(num_atoms)
     config.num_post_residual_mlps = 0
     config.use_switch = False
     config.iterated_tensor_products = False
