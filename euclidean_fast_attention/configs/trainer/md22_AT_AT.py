@@ -21,15 +21,14 @@ def get_config():
     config.num_epochs = None
     config.num_train_steps = 1_000_000
     config.save_interval_steps = 5000
-    config.log_loss_every_steps = 500
+    config.log_loss_every_steps = 50
     config.energy_unit = units.eV
     config.length_unit = units.Angstrom
-    config.log_loss_every_steps = 50
     config.pbc_bool = False
     config.auto_eval = True
     config.subtract_energy_mean = True
-    config.energy_weight = 0.01
-    config.forces_weight = 0.99
+    config.energy_weight = 0.001
+    config.forces_weight = 0.999
     config.neighbor_list_cutoff = config_dict.placeholder(float)
 
 

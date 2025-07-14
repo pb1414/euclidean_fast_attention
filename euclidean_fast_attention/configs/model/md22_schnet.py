@@ -14,7 +14,7 @@ def get_config(split: str):
 
     # Model Architecture Parameters
     config.num_layers = 3
-    config.num_features = 128
+    config.num_features = 256  # 290 for local model
 
     # Interaction Parameters
     config.cutoff = 4.0
@@ -30,14 +30,14 @@ def get_config(split: str):
     config.use_efa_block = True
     config.emulate_efa_block = False
     config.era_max_length = max_length_lookup[split]
-    config.era_max_frequency = float(np.pi)
-    config.era_qk_num_features = 32
+    config.era_max_frequency = max_frequency_lookup[split]
+    config.era_qk_num_features = 16
     config.era_v_num_features = 32
-    config.era_lebedev_num = 50
+    config.era_lebedev_num = lebedev_num_lookup[split]
     config.era_activation_fn = 'identity'
     config.efa_block_behaves_like_identity_at_init = True
     config.efa_block_layer_normalization_bool = False
-    config.efa_block_mlp_hidden_features = config_dict.placeholder(int)
+    config.efa_block_mlp_hidden_features = 64
     
     return config
 
@@ -50,4 +50,24 @@ max_length_lookup = {
     "buckyball_catcher": 15.0,
     "nanotube": 33.0,
     "stachyose": 14.0,
+}
+
+max_frequency_lookup = {
+    "AT_AT": float(2*np.pi),
+    "AT_AT_CG_CG": float(2*np.pi),
+    "AcAla3NHMe": float(np.pi),
+    "DHA": float(np.pi),
+    "buckyball_catcher": float(np.pi),
+    "nanotube": float(2*np.pi),
+    "stachyose": float(np.pi),
+}
+
+lebedev_num_lookup = {
+    "AT_AT": 86,
+    "AT_AT_CG_CG": 86,
+    "AcAla3NHMe": 50,
+    "DHA": 50,
+    "buckyball_catcher": 50,
+    "nanotube": 86,
+    "stachyose": 50,
 }
