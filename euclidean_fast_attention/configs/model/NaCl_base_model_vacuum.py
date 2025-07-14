@@ -39,7 +39,7 @@ def calculate_num_features(num_atoms: str, base_num_features: int = 16, base_num
 
     # Logarithmically increase the features with the number of atoms and round to the next integer
     num_features = np.floor(
-        1 + base_num_features * np.log(num_atoms_int / base_num_atoms)
+        (0.5 - 1e-5) + base_num_features * (1 + np.log(num_atoms_int / base_num_atoms))
     ).item()
 
     num_features = int(num_features)
