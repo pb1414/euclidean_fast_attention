@@ -10,7 +10,7 @@ def get_config():
     config.name = "adam"
     config.learning_rate = 1e-3
     config.schedule = "exponential_decay"
-    config.stop_learning_rate = 1e-5
+    config.stop_learning_rate = 1e-6
     config.clip_by_global_norm = config_dict.placeholder(float)
     config.eps = config_dict.placeholder(float)
 
