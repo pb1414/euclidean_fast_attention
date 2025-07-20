@@ -192,7 +192,7 @@ class SchNet(nn.Module):
                     f"era_max_length={self.era_max_length}, "
                     f"era_qk_num_features={self.era_qk_num_features}, "
                     f"era_v_num_features={self.era_v_num_features}, "
-                    f"efa_block_layer_normlization_bool={self.efa_block_layer_normlization_bool}"
+                    f"efa_block_layer_normlization_bool={self.efa_block_layer_normalization_bool}"
                     f"era_activation_fn={self.era_activation_fn}"
                     f"era_max_frequency={self.era_max_frequency}"
                 )
