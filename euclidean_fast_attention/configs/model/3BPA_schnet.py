@@ -34,6 +34,7 @@ def get_config():
     config.era_v_num_features = 32
     config.era_lebedev_num = 50
     config.era_activation_fn = 'identity'
+    config.efa_block_skip_in_final_layer_bool = False
     config.efa_block_layer_normalization_bool = False
     config.efa_block_behaves_like_identity_at_init = True
     config.efa_block_mlp_hidden_features = 64
