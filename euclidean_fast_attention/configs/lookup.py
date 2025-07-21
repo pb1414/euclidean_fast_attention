@@ -1,21 +1,47 @@
-# def default_num_train(split: str):
-#     return num_train_lookup[split]
+geometric_graph_lookup_cutoff4_md22 = {  # (number of atoms, avg. number of neighbors per atom = max # total neighbors / num_atoms)
+    "AT_AT": (60, 16),
+    "AT_AT_CG_CG": (118, 18),
+    "AcAla3NHMe": (42, 17),
+    "DHA": (56, 18),
+    "buckyball_catcher": (148, 18),
+    "nanotube": (370, 25),
+    "stachyose": (87, 22),
+}
 
 
-# def calculate_batch_configs(
-#         config, split: str, capacity_multiplier: float = 1.1
-# ):
-#     max_num_graphs = config.trainer["max_num_graphs"]
-#     cutoff = config.model.cutoff
-#     num_nodes, avg_num_neighbors = molecular_graph_lookup[cutoff][split]
-#     max_num_nodes = (max_num_graphs - 1) * num_nodes + 1
-#     max_num_edges = (max_num_graphs - 1) * avg_num_neighbors * num_nodes
-#     max_num_edges = int(max_num_edges * capacity_multiplier)
-#     return max_num_nodes, max_num_edges
+geometric_graph_lookup_cutoff5_md22 = { # (number of atoms, avg. # of neighbors per atom = max # total neighbors / num_atoms)
+    "AT_AT": (60, 26),
+    "AT_AT_CG_CG": (118, 30),
+    "AcAla3NHMe": (42, 27),
+    "DHA": (56, 29),
+    "buckyball_catcher": (148, 33),
+    "nanotube": (370, 45),
+    "stachyose": (87, 36),
+}
 
 
-# def get_max_length(split: str):
-#     return max_length_lookup[split]
+geometric_graph_lookup_md22 = {
+    4: geometric_graph_lookup_cutoff4_md22, 
+    5: geometric_graph_lookup_cutoff5_md22
+}
+
+
+num_train_lookup = {
+    "ethanol": 1000,
+    "aspirin": 1000,
+    "toluene": 1000,
+    "uracil": 1000,
+    "naphthalene": 1000,
+    "salicylic": 1000,
+    "malonaldehyde": 1000,
+    "at_at": 3000,
+    "at_at_cg_cg": 2000,
+    "ac_ala3_nhme": 6000,
+    "dha": 8000,
+    "buckyball_catcher": 600,
+    "double_walled_nanotube": 800,
+    "stachyose": 8000,
+}
 
 
 max_length_lookup = {
@@ -35,58 +61,8 @@ max_length_lookup = {
     "stachyose": 14.0,
 }
 
-lookup_cutoff4 = {  # (number of atoms, avg. number of neighbors per atom = max # total neighbors / num_atoms)
-    "ethanol": (9, 8),
-    "aspirin": (21, 20),
-    "toluene": (15, 14),
-    "uracil": (12, 11),
-    "naphthalene": (18, 17),
-    "salicylic": (16, 15),
-    "malonaldehyde": (9, 8),
-    "at_at": (60, 16),
-    "at_at_cg_cg": (118, 18),
-    "ac_ala3_nhme": (42, 17),
-    "dha": (56, 18),
-    "buckyball_catcher": (148, 18),
-    "double_walled_nanotube": (370, 25),
-    "stachyose": (87, 22),
-}
 
-lookup_cutoff5 = { # (number of atoms, avg. # of neighbors per atom = max # total neighbors / num_atoms)
-    "ethanol": (9, 8),  
-    "aspirin": (21, 20),
-    "toluene": (15, 14),
-    "uracil": (12, 11),
-    "naphthalene": (18, 17),
-    "salicylic": (16, 15),
-    "malonaldehyde": (9, 8),
-    "at_at": (60, 26),
-    "at_at_cg_cg": (118, 30),
-    "ac_ala3_nhme": (42, 27),
-    "dha": (56, 29),
-    "buckyball_catcher": (148, 33),
-    "double_walled_nanotube": (370, 45),
-    "stachyose": (87, 36),
-}
-
-molecular_graph_lookup = {
-    4: lookup_cutoff4, 
-    5: lookup_cutoff5
-}
-
-num_train_lookup = {
-    "ethanol": 1000,
-    "aspirin": 1000,
-    "toluene": 1000,
-    "uracil": 1000,
-    "naphthalene": 1000,
-    "salicylic": 1000,
-    "malonaldehyde": 1000,
-    "at_at": 3000,
-    "at_at_cg_cg": 2000,
-    "ac_ala3_nhme": 6000,
-    "dha": 8000,
-    "buckyball_catcher": 600,
-    "double_walled_nanotube": 800,
-    "stachyose": 8000,
-}
+def get_avg_num_neighbors_md22(split: str, cutoff: int):
+        num_and_neighs = md22_avg_num_neighbors_lookup[cutoff][split]
+        _, neighs = num_and_neighs
+        return neighs

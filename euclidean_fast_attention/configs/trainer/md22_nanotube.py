@@ -4,9 +4,10 @@ import ml_collections
 
 from ase import units
 from ml_collections import config_dict
+from euclidean_fast_attention.configs.lookup import get_avg_num_neighbors_md22
 
 
-def get_config():
+def get_config(cutoff: str = '4'):
     """Get the default hyperparameter configuration."""
     config = ml_collections.ConfigDict()
     
@@ -15,9 +16,9 @@ def get_config():
     config.num_valid = 500
     config.split_seed = 0
     config.model_seed = 0
-    config.max_num_nodes = 2 * 370 + 1
-    config.max_num_edges = 2 * 370 * 25 + 1  # works for cutoff 4.0
-    config.max_num_graphs = 2 + 1
+    config.max_num_nodes = 1 * 370 + 1
+    config.max_num_edges = 1 * 370 * get_avg_num_neighbors_md22(split='nanotube', cutoff=int(cutoff)) + 1
+    config.max_num_graphs = 1 + 1
     config.num_epochs = None
     config.num_train_steps = 1_000_000
     config.save_interval_steps = 5000
