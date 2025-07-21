@@ -164,6 +164,7 @@ class SchNet(nn.Module):
     use_efa_block: bool = False
     emulate_efa_block: bool = False
     
+    efa_block_skip_in_final_layer_bool: bool = False
     efa_block_behaves_like_identity_at_init: bool = True
     efa_block_layer_normalization_bool: bool = False
     efa_block_mlp_hidden_features: Optional[int] = None
@@ -265,28 +266,31 @@ class SchNet(nn.Module):
 
             # EFA block.
             if self.use_efa_block:
-                x_nl = x[:, None, None]
-                x_nl = EFABlock(
-                    era_lebedev_num=self.era_lebedev_num,
-                    era_max_frequency=self.era_max_frequency,
-                    era_max_length=self.era_max_length,
-                    era_qk_num_features=self.era_qk_num_features,
-                    era_v_num_features=self.era_v_num_features,
-                    era_emulate_bool=self.emulate_efa_block,
-                    behaves_like_identity_at_init=self.efa_block_behaves_like_identity_at_init,
-                    pbc_bool=self.pbc_bool,
-                    mlp_hidden_features=self.efa_block_mlp_hidden_features,
-                    layer_normalization_bool=self.efa_block_layer_normalization_bool,
-                    era_activation_fn=self.era_activation_fn
-                )(
-                    x=x_nl,
-                    positions=positions,
-                    batch_segments=batch_segments,
-                    graph_mask=graph_mask,
-                    lattice_vectors=lattice_vectors,
-                )  # (num_nodes, 1, 1, num_features)
+                if self.efa_block_skip_in_final_layer_bool == True and i == self.num_layers - 1:
+                    x_nl = x_nl = jnp.zeros_like(x)
+                else:
+                    x_nl = x[:, None, None]
+                    x_nl = EFABlock(
+                        era_lebedev_num=self.era_lebedev_num,
+                        era_max_frequency=self.era_max_frequency,
+                        era_max_length=self.era_max_length,
+                        era_qk_num_features=self.era_qk_num_features,
+                        era_v_num_features=self.era_v_num_features,
+                        era_emulate_bool=self.emulate_efa_block,
+                        behaves_like_identity_at_init=self.efa_block_behaves_like_identity_at_init,
+                        pbc_bool=self.pbc_bool,
+                        mlp_hidden_features=self.efa_block_mlp_hidden_features,
+                        layer_normalization_bool=self.efa_block_layer_normalization_bool,
+                        era_activation_fn=self.era_activation_fn
+                    )(
+                        x=x_nl,
+                        positions=positions,
+                        batch_segments=batch_segments,
+                        graph_mask=graph_mask,
+                        lattice_vectors=lattice_vectors,
+                    )  # (num_nodes, 1, 1, num_features)
 
-                x_nl = jnp.squeeze(x_nl, axis=(-2, -3))  # (num_nodes, num_features)
+                    x_nl = jnp.squeeze(x_nl, axis=(-2, -3))  # (num_nodes, num_features)
             else:
                 x_nl = jnp.zeros_like(x)
 
