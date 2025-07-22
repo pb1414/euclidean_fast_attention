@@ -92,6 +92,9 @@ class EnergyModel(nn.Module):
     era_qk_num_features: Optional[int] = None
     era_v_num_features: Optional[int] = None
 
+    efa_block_post_mlp_bool: bool = True
+    mp_block_post_mlp_bool: bool = True
+
     output_is_zero_at_init: Optional[bool] = True
     efa_block_behaves_like_identity_at_init: bool = True
     mp_block_behaves_like_identity_at_init: bool = True
@@ -194,16 +197,17 @@ class EnergyModel(nn.Module):
                     x = e3x.nn.change_max_degree_or_type(
                         x, max_degree=0, include_pseudotensors=False
                     )
+                # MP block is followed by an MLP.
+                if self.mp_block_post_mlp_bool:
+                    # skip connection around mp block
+                    y = e3x.nn.add(x, y)
 
-                # skip connection around mp block
-                y = e3x.nn.add(x, y)
-
-                # Atom-wise refinement MLP for message passing features.
-                y = e3x.nn.Dense(self.num_features)(y)
-                y = e3x.nn.silu(y)
-                y = e3x.nn.Dense(
-                    self.num_features, kernel_init=self.mp_last_layer_kernel_init
-                )(y)
+                    # Atom-wise refinement MLP for message passing features.
+                    y = e3x.nn.Dense(self.num_features)(y)
+                    y = e3x.nn.silu(y)
+                    y = e3x.nn.Dense(
+                        self.num_features, kernel_init=self.mp_last_layer_kernel_init
+                    )(y)
 
                 # Apply non local interactions via EFA block.
                 if self.era_use_in_iterations is not None:
@@ -253,16 +257,25 @@ class EnergyModel(nn.Module):
                                 lattice_vectors=lattice_vectors,
                             )
 
-                        # Skip connection around EFA.
-                        y_nl = e3x.nn.add(e3x.nn.Dense(self.num_features)(y_nl), x)
+                        # EFA block is followed by an MLP.
+                        if self.efa_block_post_mlp_bool == True:
+                            # Skip connection around EFA.
+                            y_nl = e3x.nn.add(e3x.nn.Dense(self.num_features)(y_nl), x)
 
-                        # Atom-wise refinement MLP for non local features.
-                        y_nl = e3x.nn.Dense(self.num_features)(y_nl)
-                        y_nl = e3x.nn.silu(y_nl)
-                        y_nl = e3x.nn.Dense(
-                            self.num_features, 
-                            kernel_init=self.efa_last_layer_kernel_init
-                        )(y_nl)
+                            # Atom-wise refinement MLP for non local features.
+                            y_nl = e3x.nn.Dense(self.num_features)(y_nl)
+                            y_nl = e3x.nn.silu(y_nl)
+                            y_nl = e3x.nn.Dense(
+                                self.num_features, 
+                                kernel_init=self.efa_last_layer_kernel_init
+                            )(y_nl)
+                        else:
+                            y_nl = e3x.nn.Dense(
+                                self.num_features,
+                                kernel_init=self.efa_last_layer_kernel_init
+                            )(
+                                y_nl
+                            )
 
                     else:
                         y_nl = jnp.zeros_like(y)
@@ -279,15 +292,17 @@ class EnergyModel(nn.Module):
                     num_segments=num_nodes,
                 )
 
-                # skip connection around mp block
-                y = e3x.nn.add(x, y)
+                # MP block is followed by an MLP.
+                if self.mp_block_post_mlp_bool:
+                    # skip connection around mp block
+                    y = e3x.nn.add(x, y)
 
-                # Atom-wise refinement MLP for message passing features.
-                y = e3x.nn.Dense(self.num_features)(y)
-                y = e3x.nn.silu(y)
-                y = e3x.nn.Dense(
-                    self.num_features, kernel_init=self.mp_last_layer_kernel_init
-                )(y)
+                    # Atom-wise refinement MLP for message passing features.
+                    y = e3x.nn.Dense(self.num_features)(y)
+                    y = e3x.nn.silu(y)
+                    y = e3x.nn.Dense(
+                        self.num_features, kernel_init=self.mp_last_layer_kernel_init
+                    )(y)
 
                 # Apply non local interactions using Euclidean RoPE.
                 if self.era_use_in_iterations is not None:
@@ -328,16 +343,24 @@ class EnergyModel(nn.Module):
                                 lattice_vectors=lattice_vectors,
                             )
 
-                        # skip connection around RoPe attention
-                        y_nl = e3x.nn.add(e3x.nn.Dense(self.num_features)(y_nl), x)
+                        # EFA block is followed by an MLP.
+                        if self.efa_block_post_mlp_bool == True:
+                            # skip connection around RoPe attention
+                            y_nl = e3x.nn.add(e3x.nn.Dense(self.num_features)(y_nl), x)
 
-                        # Atom-wise refinement MLP for non local features.
-                        y_nl = e3x.nn.Dense(self.num_features)(y_nl)
-                        y_nl = e3x.nn.silu(y_nl)
-                        y_nl = e3x.nn.Dense(
-                            self.num_features, kernel_init=self.efa_last_layer_kernel_init
-                        )(y_nl)
-
+                            # Atom-wise refinement MLP for non local features.
+                            y_nl = e3x.nn.Dense(self.num_features)(y_nl)
+                            y_nl = e3x.nn.silu(y_nl)
+                            y_nl = e3x.nn.Dense(
+                                self.num_features, kernel_init=self.efa_last_layer_kernel_init
+                            )(y_nl)
+                        else:
+                            y_nl = e3x.nn.Dense(
+                                self.num_features,
+                                kernel_init=self.efa_last_layer_kernel_init
+                            )(
+                                y_nl
+                            )
                     else:
                         y_nl = jnp.zeros_like(y)
                 else:

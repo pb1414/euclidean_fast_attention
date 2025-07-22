@@ -61,7 +61,7 @@ class Interaction(nn.Module):
             dst_idx=dst_idx,
             src_idx=src_idx
         )  # (num_nodes, num_features)
-        # y = nn.Dense(num_features)(shifted_softplus(nn.Dense(num_features)(y)))  # (num_nodes, num_features)
+        y = nn.Dense(num_features)(shifted_softplus(nn.Dense(num_features)(y)))  # (num_nodes, num_features)
         return y
 
 
@@ -92,33 +92,60 @@ class EFABlock(nn.Module):
             batch_segments,
             graph_mask,
             lattice_vectors,
-    ):  
-        num_features = x.shape[-1]
+    ):
 
-        y_att = EuclideanFastAttention(
-            num_features_qk=self.era_qk_num_features,
-            num_features_v=self.era_v_num_features,
-            activation_fn=self.era_activation_fn,
-            lebedev_num=self.era_lebedev_num,
-            epe_max_frequency=self.era_max_frequency,
-            epe_max_length=self.era_max_length,
-            pbc_bool=self.pbc_bool,
-        )(
-            x,
-            positions,
-            batch_segments,
-            graph_mask,
-            lattice_vectors=lattice_vectors
-        )
+        num_features = x.shape[-1]
+        if self.era_emulate_bool == True:
+            y_att = e3x.nn.Dense(
+                2 * self.era_qk_num_features + self.era_v_num_features
+            )(
+                x
+            )
+        else:
+            y_att = EuclideanFastAttention(
+                num_features_qk=self.era_qk_num_features,
+                num_features_v=self.era_v_num_features,
+                activation_fn=self.era_activation_fn,
+                lebedev_num=self.era_lebedev_num,
+                epe_max_frequency=self.era_max_frequency,
+                epe_max_length=self.era_max_length,
+                pbc_bool=self.pbc_bool,
+            )(
+                x,#nn.LayerNorm()(x) if self.layer_normalization_bool == True else x,
+                positions,
+                batch_segments,
+                graph_mask,
+                lattice_vectors=lattice_vectors
+            )
 
         y_att = e3x.nn.Dense(
             num_features, 
             kernel_init=self.last_layer_kernel_init_fn
-        )(
-            y_att
-        )
+        )(y_att)
 
-        return y_att
+        # Skip around EFA block.
+        x = e3x.nn.add(x, y_att)
+
+        if self.layer_normalization_bool:
+            x = nn.LayerNorm()(x)
+    
+        # Atom-wise refinement MLP for non local features.
+        if self.mlp_hidden_features is not None:
+            mlp_hidden_features = self.mlp_hidden_features
+        else:
+            mlp_hidden_features = num_features
+
+        y_mlp = e3x.nn.Dense(mlp_hidden_features)(x)
+        y_mlp = e3x.nn.silu(y_mlp)
+        y_mlp = e3x.nn.Dense(num_features, kernel_init=self.last_layer_kernel_init_fn)(y_mlp)
+
+        # Skip around MLP.
+        x = e3x.nn.add(x, y_mlp)
+
+        if self.layer_normalization_bool:
+            x = nn.LayerNorm()(x)
+
+        return x
 
 
 class SchNet(nn.Module):
@@ -240,9 +267,10 @@ class SchNet(nn.Module):
             # EFA block.
             if self.use_efa_block:
                 if self.efa_block_skip_in_final_layer_bool == True and i == self.num_layers - 1:
-                    delta_x_nl = jnp.zeros_like(x)
+                    x_nl = x_nl = jnp.zeros_like(x)
                 else:
-                    delta_x_nl = EFABlock(
+                    x_nl = x[:, None, None]
+                    x_nl = EFABlock(
                         era_lebedev_num=self.era_lebedev_num,
                         era_max_frequency=self.era_max_frequency,
                         era_max_length=self.era_max_length,
@@ -255,22 +283,24 @@ class SchNet(nn.Module):
                         layer_normalization_bool=self.efa_block_layer_normalization_bool,
                         era_activation_fn=self.era_activation_fn
                     )(
-                        x=x[:, None, None],
+                        x=x_nl,
                         positions=positions,
                         batch_segments=batch_segments,
                         graph_mask=graph_mask,
                         lattice_vectors=lattice_vectors,
                     )  # (num_nodes, 1, 1, num_features)
 
-                    delta_x_nl = jnp.squeeze(delta_x_nl, axis=(-2, -3))  # (num_nodes, num_features)
+                    x_nl = jnp.squeeze(x_nl, axis=(-2, -3))  # (num_nodes, num_features)
             else:
-                delta_x_nl = jnp.zeros_like(x)
+                x_nl = jnp.zeros_like(x)
 
-            # MLP and skip around MP and EFA.
-            x = x + nn.Dense(self.num_features)(shifted_softplus(nn.Dense(self.num_features)(delta_x + delta_x_nl)))
+            # Skip around MP and EFA block.
+            x = x + delta_x + x_nl
+
+        num_features = x.shape[-1]
 
         # Predict atomic energies with an MLP.
-        atomic_energies = nn.Dense(1)(shifted_softplus(nn.Dense(self.num_features // 2)(x)))  # (num_nodes, 1)
+        atomic_energies = nn.Dense(1)(shifted_softplus(nn.Dense(num_features // 2)(x)))  # (num_nodes, 1)
 
         atomic_energies = jnp.squeeze(
             atomic_energies, axis=(-1)
