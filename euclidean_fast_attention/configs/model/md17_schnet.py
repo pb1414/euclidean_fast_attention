@@ -3,7 +3,6 @@
 import numpy as np
 
 from ml_collections import config_dict
-from euclidean_fast_attention.configs.lookup import molecular_graph_lookup, max_length_lookup
 
 
 def get_config():
