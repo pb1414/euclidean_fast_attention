@@ -31,5 +31,6 @@ def get_config(num_atoms: str):
     config.use_switch = False
     config.iterated_tensor_products = False
     config.dispersion_correction_bool = False
+    config.output_is_zero_at_init = True
     
     return config
