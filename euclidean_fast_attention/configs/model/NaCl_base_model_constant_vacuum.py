@@ -27,10 +27,12 @@ def get_config(num_atoms: str):
     config.era_lebedev_num = 146
     config.era_qk_num_features = 16
     config.era_v_num_features = 16
+    config.efa_block_post_mlp_bool = True
+    config.mp_block_post_mlp_bool = True
     config.num_post_residual_mlps = 0
     config.use_switch = False
     config.iterated_tensor_products = False
     config.dispersion_correction_bool = False
     config.output_is_zero_at_init = True
-    
+
     return config
