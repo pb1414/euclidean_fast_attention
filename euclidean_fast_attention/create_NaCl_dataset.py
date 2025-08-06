@@ -129,8 +129,8 @@ def main(_):
             graph_mask=batch_info['graph_mask'],
             batch_segments=batch_info['batch_segments']
         )
-        g.globals['energy'] = energy
-        g.nodes['forces'] = forces
+        g.globals['energy'] = np.array(energy)
+        g.nodes['forces'] = np.array(forces)
 
         og_graphs = jraph.unbatch(g)[:batch_info['num_of_non_padded_graphs']]
 
@@ -140,6 +140,8 @@ def main(_):
         if step % 10 == 0:
             print('Step: ', step)
 
+    del all_graphs
+    
     all_positions = []
     all_numbers = []
     all_energies = []
