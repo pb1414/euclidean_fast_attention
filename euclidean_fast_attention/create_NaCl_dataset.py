@@ -15,8 +15,12 @@ from pathlib import Path
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('save_dir', None, 'Save directory for the data.')
-flags.DEFINE_integer('seed', None, 'Random seed.')
-flags.DEFINE_integer('num_train', 10_000, 'Number of training points')
+flags.DEFINE_string('filename', None, 'Save data to ${filename}.npz.')
+flags.DEFINE_integer('seed', 42, 'Random seed.')
+flags.DEFINE_integer('num_data', 10_000, 'Number of data points')
+flags.DEFINE_integer('Nmin', 2, 'Minimal number of atoms.')
+flags.DEFINE_integer('Nmax', 100, 'Maximal number of atoms.')
+flags.DEFINE_float('Dsphere', 15.0, 'Diameter of the sphere.')
 
 
 def main(_):
@@ -30,20 +34,22 @@ def main(_):
         sys.exit(1)
     
     # Diameter of the sphere.        
-    D_local_sphere = 15.0
+    D_sphere = FLAGS.Dsphere
 
     # Maximal number of atoms in the sphere.
-    Nmax_sphere = 100
+    Nmax = FLAGS.Nmax
+    Nmin = FLAGS.Nmin
 
     # Seed and number of data points.
     seed = FLAGS.seed
-    num_train = FLAGS.num_train
+    num_data = FLAGS.num_data
 
     # Save directory.
     save_dir = Path(FLAGS.save_dir).resolve()
     save_dir.mkdir(exist_ok=True)
 
-    
+    # Filename
+    filename = FLAGS.filename
 
     # Seed.
     np.random.seed(seed)
@@ -69,7 +75,7 @@ def main(_):
         return energy, forces
 
     # Sample number of atoms.
-    N = np.random.randint(low=2, high=Nmax_sphere + 1, size=(num_train, ))
+    N = np.random.randint(low=Nmin, high=Nmax + 1, size=(num_data, ))
 
     all_graphs = []
 
@@ -77,7 +83,7 @@ def main(_):
     print('Generate the geometries')
     for step, n in enumerate(N):
 
-        z, pos = place_atoms_in_sphere(D_local_sphere, n)
+        z, pos = place_atoms_in_sphere(D_sphere, n)
         
         src_idx, dst_idx = sparse_pairwise_indices_np(n)
         
@@ -107,8 +113,8 @@ def main(_):
     print('Calculate energy and forces')
     for g in jraph.dynamically_batch(
         all_graphs,
-        n_node=Nmax_sphere + 1,
-        n_edge=Nmax_sphere * Nmax_sphere + 1,
+        n_node=Nmax + 1,
+        n_edge=Nmax * Nmax + 1,
         n_graph=2,
     ):
 
@@ -148,9 +154,9 @@ def main(_):
         z = dg.nodes['atomic_numbers']
         
         num_atoms = len(f)
-        f_padded = np.pad(f, ((0, Nmax_sphere - num_atoms), (0, 0)), mode='constant', constant_values=0)
-        p_padded = np.pad(p, ((0, Nmax_sphere - num_atoms), (0, 0)), mode='constant', constant_values=0)
-        z_padded = np.pad(z, ((0, Nmax_sphere - num_atoms)), mode='constant', constant_values=0)
+        f_padded = np.pad(f, ((0, Nmax - num_atoms), (0, 0)), mode='constant', constant_values=0)
+        p_padded = np.pad(p, ((0, Nmax - num_atoms), (0, 0)), mode='constant', constant_values=0)
+        z_padded = np.pad(z, ((0, Nmax - num_atoms)), mode='constant', constant_values=0)
         nm = np.where(z_padded > 0, True, False)
 
         all_forces.append(f_padded)
@@ -161,7 +167,7 @@ def main(_):
 
     # Save to .npz file
     np.savez(
-        save_dir / f'NaCl_{seed}.npz',
+        save_dir / f'{filename}.npz',
         positions=np.stack(all_positions),
         atomic_numbers=np.stack(all_numbers),
         energy=np.stack(all_energies),
