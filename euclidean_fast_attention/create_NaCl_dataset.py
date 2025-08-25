@@ -21,6 +21,7 @@ flags.DEFINE_integer('num_data', 10_000, 'Number of data points')
 flags.DEFINE_integer('Nmin', 2, 'Minimal number of atoms.')
 flags.DEFINE_integer('Nmax', 100, 'Maximal number of atoms.')
 flags.DEFINE_float('Dsphere', 15.0, 'Diameter of the sphere.')
+flags.DEFINE_bool('repulsion_bool', True, 'add repulsion term.')
 
 
 def main(_):
@@ -48,13 +49,19 @@ def main(_):
     save_dir = Path(FLAGS.save_dir).resolve()
     save_dir.mkdir(exist_ok=True)
 
-    # Filename
+    # Potential details.
+    repulsion_bool = FLAGS.repulsion_bool
+
+    # Filename.
     filename = FLAGS.filename
 
     # Seed.
     np.random.seed(seed)
 
-    nacl_potential = NaClPotential.create(pbc_bool=False)
+    nacl_potential = NaClPotential.create(
+        pbc_bool=False, 
+        repulsion_bool=repulsion_bool
+    )
 
     @jax.jit
     def NaCl_energy_and_force_fn(positions, atomic_numbers, charges, src_idx, dst_idx, batch_segments, graph_mask):

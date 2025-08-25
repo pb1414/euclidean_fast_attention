@@ -248,11 +248,26 @@ class EuclideanFastAttention(nn.Module):
                     f'Received {lattice_vectors.shape}.'
                 )
             # Lattice vectors are a special case of a grid with M = 3 grid points.
+            # lattice_vectors_fs = jnp.concatenate([lattice_vectors, -lattice_vectors], axis=-2)  # (num_graphs, 6, 3)
             grid_u = lattice_vectors[batch_segments] # (N, 3, 3)
-            grid_w = 1/3. * jnp.ones(
-                (3, ), 
+
+            lv_norm = e3x.ops.norm(grid_u, axis=-1, keepdims=True)
+            lv_norm = jnp.where(lv_norm > 1e-4, lv_norm, 1.0)
+            # grid_u = grid_u / jnp.square(lv_norm)
+
+            # idx_a, idx_b = jnp.triu_indices(3, k=1)
+            # grid_u = jnp.concatenate([grid_u, grid_u[:, idx_a] + grid_u[:, idx_b]], axis=1) # (N, 6, 3)
+            grid_u = grid_u / lv_norm
+            
+            grid_w = 1/grid_u.shape[1] * jnp.ones(
+                (grid_u.shape[1], ),
                 dtype=grid_u.dtype
             ) # (3, )
+
+            # coeff = jnp.linspace((1 / q.shape[-1])**(1/2), 0.0, q.shape[-1], endpoint=False)
+
+            # q = q * coeff * jnp.sqrt(q.shape[-1])
+            # k = k * coeff
         else:
             # Lebedev grid.
             with jax.ensure_compile_time_eval():

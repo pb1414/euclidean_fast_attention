@@ -86,6 +86,7 @@ class EnergyModel(nn.Module):
 
     era_num_frequencies: Optional[int] = None
     era_max_frequency: Optional[float] = None
+    era_frequencies_trainable: bool = False
     era_max_length: Optional[float] = None
     era_lebedev_num: Optional[int] = None
 
@@ -239,6 +240,7 @@ class EnergyModel(nn.Module):
                                 epe_num_frequencies=self.era_num_frequencies,
                                 epe_max_frequency=self.era_max_frequency,
                                 epe_max_length=self.era_max_length,
+                                epe_frequencies_trainable=self.era_frequencies_trainable,
                                 tensor_integration=self.era_tensor_integration,
                                 ti_max_degree_sph=self.era_ti_max_degree_sph,
                                 ti_max_degree=self.era_ti_max_degree,
@@ -325,6 +327,7 @@ class EnergyModel(nn.Module):
                                 epe_num_frequencies=self.era_num_frequencies,
                                 epe_max_frequency=self.era_max_frequency,
                                 epe_max_length=self.era_max_length,
+                                epe_frequencies_trainable=self.era_frequencies_trainable,
                                 tensor_integration=self.era_tensor_integration,
                                 ti_max_degree_sph=self.era_ti_max_degree_sph,
                                 ti_max_degree=self.era_ti_max_degree,

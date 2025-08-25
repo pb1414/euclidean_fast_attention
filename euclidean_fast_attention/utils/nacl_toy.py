@@ -70,6 +70,7 @@ class NaClPotential:
     pbc_bool: bool = struct.field(pytree_node=False)
     kmul: Array = struct.field(pytree_node=False)
     cell: Array = struct.field(pytree_node=False)
+    repulsion_bool: bool = struct.field(pytree_node=False)
     
     @classmethod
     def create(
@@ -78,6 +79,7 @@ class NaClPotential:
         alpha: float = 0.5,
         beta: float = 0.25,
         pbc_bool: bool = False,
+        repulsion_bool: bool = True,
         Nxmax: Optional[int] = None,
         Nymax: Optional[int] = None,
         Nzmax: Optional[int] = None,
@@ -112,6 +114,7 @@ class NaClPotential:
             pbc_bool=pbc_bool,
             kmul=kmul,
             cell=cell,
+            repulsion_bool=repulsion_bool
         )
 
 
@@ -147,26 +150,39 @@ class NaClPotential:
         # that might seem overkill, but it in principle allows for easy batching in the future
         
         ke = 14.399645351950548
-        
-        positions_dst = positions[dst_idx]
-        positions_src = positions[src_idx]
-        
-        displacements = positions_src - positions_dst
-        distances = e3x.ops.norm(displacements, axis=-1)
+        if src_idx is None:
+            assert dst_idx is None
+            pair_charges = charges[None] * charges[:, None]
+            displacements = positions[None] - positions[:, None]
+            distances = e3x.ops.norm(displacements, axis=-1)
+            pairwise_energy = ke * stable_erf_coulomb(distances, self.alpha) * pair_charges
+            pairwise_energy = jnp.fill_diagonal(pairwise_energy, 0.0, inplace=False)
+            
+            energy_per_graph = jnp.sum(pairwise_energy.reshape(-1)) / 2.0
+        else:
+            positions_dst = positions[dst_idx]
+            positions_src = positions[src_idx]
+            
+            displacements = positions_src - positions_dst
+            distances = e3x.ops.norm(displacements, axis=-1)
+            
+            electrostatics = ke * charges[src_idx] * charges[dst_idx] * stable_erf_coulomb(distances, self.alpha)
+            pairwise_energy = electrostatics
 
-        electrostatics = ke * charges[src_idx] * charges[dst_idx] * stable_erf_coulomb(distances, self.alpha)
-        repulsion = self.repulsive_energy(
-            distances=distances, 
-            atomic_numbers=atomic_numbers, 
-            src_idx=src_idx, 
-            dst_idx=dst_idx
-        )
-        
-        pairwise_energy = (repulsion + electrostatics) / 2   # (num_pairs, )
-        
-        energy_per_atom = jax.ops.segment_sum(pairwise_energy, segment_ids=dst_idx, num_segments=len(batch_segments))
-        energy_per_graph = jax.ops.segment_sum(energy_per_atom, segment_ids=batch_segments, num_segments=len(graph_mask))
-        energy_per_graph = jnp.where(graph_mask, energy_per_graph, 0.0)
+            if self.repulsion_bool == True:
+                repulsion = self.repulsive_energy(
+                    distances=distances,
+                    atomic_numbers=atomic_numbers,
+                    src_idx=src_idx,
+                    dst_idx=dst_idx
+                )
+                pairwise_energy += repulsion
+
+            pairwise_energy = pairwise_energy / 2.0   # (num_pairs, )
+            
+            energy_per_atom = jax.ops.segment_sum(pairwise_energy, segment_ids=dst_idx, num_segments=len(batch_segments))
+            energy_per_graph = jax.ops.segment_sum(energy_per_atom, segment_ids=batch_segments, num_segments=len(graph_mask))
+            energy_per_graph = jnp.where(graph_mask, energy_per_graph, 0.0)
         
         return -jnp.sum(energy_per_graph), energy_per_graph
 
@@ -206,8 +222,8 @@ def place_atoms_in_sphere(
     n_cl -= offset
 
     atom_specs = np.zeros((17 + 1, ))
-    atom_specs[11] = 0.95*0.5
-    atom_specs[17] = 1.81*0.5
+    atom_specs[11] = 0.95*0.3
+    atom_specs[17] = 1.81*0.3
 
     atoms_to_place = [11] * n_na + [17] * n_cl
     np.random.shuffle(atoms_to_place)
