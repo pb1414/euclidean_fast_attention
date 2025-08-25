@@ -13,7 +13,7 @@ def get_config():
     config.cutoff = 5.0  # in Angstrom
     config.num_features = 128
     config.num_layers = 3
-    config.mp_max_degree = 2
+    config.mp_max_degree = 1
     config.mp_num_basis_fn = 32
     config.radial_basis_fn = 'reciprocal_bernstein'
     config.emulate_era_block = False
