@@ -2,7 +2,7 @@
 
 import numpy as np
 import ml_collections
-from md22_schnet import max_length_lookup
+from euclidean_fast_attention.configs.model.md22_schnet import max_length_lookup
 
 
 def get_config(split: str):
