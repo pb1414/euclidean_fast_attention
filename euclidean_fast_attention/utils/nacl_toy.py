@@ -186,6 +186,80 @@ class NaClPotential:
         
         return -jnp.sum(energy_per_graph), energy_per_graph
 
+    def reciprocal_space(
+        self,
+        positions: Float[Array, "num_atoms 3"], 
+        atomic_numbers: Int[Array, "num_atoms"],
+        charges: Float[Array, "num_atoms"],
+        src_idx: Int[Array, "num_pairs"], 
+        dst_idx: Int[Array, "num_pairs"],
+        cell_offsets: Int[Array, "num_pairs 3"],
+        batch_segments: Int[Array, "num_atoms"] = None,
+        graph_mask: Bool[Array, "num_graphs"] = None
+    ) -> Float[Array, "num_pairs"]:
+
+        ke = 14.399645351950548
+        if batch_segments is not None or graph_mask is not None:
+            raise NotImplemented(
+                'Reciprocal space sum currently only supported for non-batched inputs.'
+            )
+
+        box_length = e3x.ops.norm(self.cell, axis=-1)  # (3)
+        
+        k = 2 * jnp.pi * self.kmul / jnp.expand_dims(box_length, axis=0)  # (num_k, 3)
+        k2 = jnp.sum(jnp.square(k), axis=-1)  # (num_k)  
+        
+        # k grid does not include 0 0 0 so division is safe
+        qg = jnp.exp(-0.25 * k2 / jnp.square(self.alpha)) / k2  # (num_k)
+
+        # calculate the projections on the k-points
+        r_dot_k = jnp.einsum("nd, kd -> nk", positions, k)  # (num_atoms, num_k)
+        
+        q_real = jnp.sum(jnp.expand_dims(charges, axis=1) * jnp.cos(r_dot_k), axis=0)  # (num_k)
+        q_imag = jnp.sum(jnp.expand_dims(charges, axis=1) * jnp.sin(r_dot_k), axis=0)  # (num_k)
+
+        qf = jnp.square(q_real) + jnp.square(q_imag)  # (num_k)
+    
+        # reciprocal energy
+        box_volume = jnp.prod(box_length, axis=-1)  # ()
+        reciprocal_energy = 2 * jnp.pi / box_volume * jnp.sum(qf * qg)  # ()
+        
+        # self energy
+        self_energy = self.alpha / jnp.sqrt(jnp.pi) * jnp.sum(jnp.square(charges))  # ()
+    
+        # total electrostatic energy is reciprocal minus self energy
+        total_electrostatic_energy = ke * (reciprocal_energy - self_energy)  # ()
+
+        if self.repulsion_bool == True:
+            # Need this for repulsive part.
+            displacements = space_utils.calculate_displacement_vectors(
+                positions=positions,
+                dst_idx=dst_idx,
+                src_idx=src_idx,
+                batch_segments=jnp.zeros(len(positions)).astype(int),
+                lattice_vectors=jnp.expand_dims(self.cell, axis=0),
+                cell_offsets=cell_offsets,
+                pbc_bool=True,
+            )  # (num_pairs, 3)
+            
+            distances = e3x.ops.norm(displacements, axis=-1)  # (num_pairs)
+        
+            pairwise_repulsive_energy = self.repulsive_energy(
+                distances=distances, 
+                atomic_numbers=atomic_numbers, 
+                src_idx=src_idx, 
+                dst_idx=dst_idx
+            )  # (num_pairs)
+
+            # Account for double counting in repulsive energy.
+            total_repulsive_energy = jnp.sum(pairwise_repulsive_energy) / 2.0  # ()
+        else:
+            total_repulsive_energy = 0.0
+
+        pot_energy = total_electrostatic_energy + total_repulsive_energy
+        
+        return  -pot_energy, pot_energy
+
 
 def place_atoms_in_sphere(
     diameter, 

@@ -3,6 +3,7 @@ import jraph
 import jax
 import jax.numpy as jnp
 import optax
+import e3x
 
 from clu import metrics
 from flax import struct as flax_struct
@@ -247,6 +248,17 @@ def make_eval_step_fn(loss_fn):
         return metrics_update
 
     return eval_step_fn
+
+
+def rotation_augmentation(rng, inputs):
+    num_graphs = len(inputs['graph_mask'])
+    rot = e3x.so3.random_rotation(rng, num=num_graphs)[inputs['batch_segments']]
+    pos_rot = jnp.einsum('nij, nj -> ni', rot, inputs['positions'])
+    forces_rot = jnp.einsum('nij, nj -> ni', rot, inputs['forces'])
+    inputs['positions'] = pos_rot
+    inputs['forces'] = forces_rot
+    
+    return inputs
 
 
 def mean_absolute_error(a, b, msk):

@@ -13,6 +13,7 @@ import wandb
 from orbax import checkpoint
 from typing import Any
 from typing import Optional
+from time import time
 
 from . import training_utils
 from . import jraph_utils
@@ -228,6 +229,7 @@ class NpzTrainer:
     use_wandb: bool = True
 
     pbc_bool: bool = False
+    rotation_augmentation_bool: bool = False
 
     neighbor_list_cutoff: Optional[float] = None
 
@@ -419,7 +421,7 @@ class NpzTrainer:
             collect_predictions=False,
             max_num_graphs=None,
             max_num_nodes=None,
-            max_num_edges=None,
+            max_num_edges=None
     ):
         """Evaluate a `model` with `params` on the `NpzTrainer` test split.
 
@@ -464,13 +466,21 @@ class NpzTrainer:
         forces_mae = []
         energy_mse = []
         forces_mse = []
+        inference_times = []
         running_num_of_evaluated_structures = 0
         for n, graph_batch in enumerate(test_iter):
             batch_segments_dict = jitted_batch_segments_fn(graph_batch)
             inputs = jraph_utils.jraph_to_input(graph_batch)
             inputs.update(batch_segments_dict)
+            
+            inference_start = time()
+            energy, forces = jax.block_until_ready(inference_fn(inputs))
+            inference_end = time()
+            
+            # Exlude the first call, due to compile time.
+            if n > 0:
+                inference_times.append(inference_end-inference_start)
 
-            energy, forces = inference_fn(inputs)
             energy_mae += [training_utils.mean_absolute_error(
                 energy, inputs['energy'], msk=batch_segments_dict['graph_mask']
             )]
@@ -513,6 +523,7 @@ class NpzTrainer:
         forces_rmse = jnp.sqrt(forces_mse)
         energy_mae = jnp.array(energy_mae).mean()
         forces_mae = jnp.array(forces_mae).mean()
+        inference_time = np.stack(inference_times).mean()
 
         metrics = {
             'energy_mse': energy_mse,
@@ -521,6 +532,7 @@ class NpzTrainer:
             'forces_mae': forces_mae,
             'energy_rmse': energy_rmse,
             'forces_rmse': forces_rmse,
+            'inference_time': inference_time
         }
 
         metrics = jax.tree_util.tree_map(lambda x: float(x), metrics)
@@ -616,6 +628,8 @@ class NpzTrainer:
         # create the function that takes care of the creation of the batch segments
         jitted_batch_segments_fn = jax.jit(jraph_utils.batch_segments_fn)
 
+        rotation_augmentation_jit = jax.jit(training_utils.rotation_augmentation)
+
         # prepare the training and the validation data, that includes removing the
         # energy shift, converting units and creating the jraph.GraphTuples
         prepared_train_ds, prepared_valid_ds = (
@@ -629,7 +643,10 @@ class NpzTrainer:
         mngr = self.init_ckpt_manager(
             ckpt_dir=ckpt_dir, ckpt_manager_options=ckpt_manager_options
         )
-
+        
+        # Seed for data augmentation.
+        rng = jax.random.PRNGKey(42)
+        
         # check if a CheckpointManager already exists under the specified checkpoint
         # directory.
         init_step = 0
@@ -654,6 +671,11 @@ class NpzTrainer:
                 inputs = jraph_utils.jraph_to_input(graph_batch_train)
                 # print(inputs['atomic_numbers'].shape)
                 inputs.update(batch_segments_dict)
+
+                if self.rotation_augmentation_bool:
+                    rng, rng_rot = jax.random.split(rng, 2)
+                    inputs = rotation_augmentation_jit(rng_rot, inputs)
+                
                 params, opt_state, train_metrics = train_step_fn(
                     params, opt_state, inputs
                 )
