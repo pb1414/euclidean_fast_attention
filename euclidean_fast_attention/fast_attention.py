@@ -1,52 +1,35 @@
 import e3x
 from e3x.nn.modules import initializers
-
 import numpy as np
-
 from flax import linen as nn
-
 import jax
 import jax.numpy as jnp
 import jaxtyping
-
 from typing import Any, Callable, Optional, Sequence, Union
 from . import tensor_integration
 from . import rope
 
-
-InitializerFn = initializers.InitializerFn
-Array = jaxtyping.Array
-Bool = jaxtyping.Bool
-Float = jaxtyping.Float
-Integer = jaxtyping.Integer
-UInt32 = jaxtyping.UInt32
-Shape = Sequence[Union[int, Any]]
-Dtype = Any  # This could be a real type if support for that is added.
-PRNGKey = UInt32[Array, '2']
-PrecisionLike = jax.lax.PrecisionLike
+# InitializerFn = initializers.InitializerFn
+# Array = jaxtyping.Array
+# Bool = jaxtyping.Bool
+# Float = jaxtyping.Float
+# Integer = jaxtyping.Integer
+# UInt32 = jaxtyping.UInt32
+# Shape = Sequence[Union[int, Any]]
+# Dtype = Any  # This could be a real type if support for that is added.
+# PRNGKey = UInt32[Array, '2']
+# PrecisionLike = jax.lax.PrecisionLike
 
 
 def frequency_init_fn(
         rng, num_frequencies, num_features, max_frequency, max_length, dtype
 ):
     """Init function for Euclidean Rope frequencies.
-
-    Args:
-    rng: jax.PRNGKey
-    num_frequencies: Number of frequencies.
-    num_features: Number of features.
-    max_frequency: Maximal frequency.
-    max_length: Maximal length.
-    dtype:
-
-    Returns:
-    Vector of frequency values from `[0, ..., max_frequency/max_length]`.
+    Args:    rng: jax.PRNGKey  num_frequencies: Number of frequencies.  num_features: Number of features.  max_frequency: Maximal frequency.  max_length: Maximal length.  dtype:
+    Returns:     Vector of frequency values from `[0, ..., max_frequency/max_length]`.
     """
     if num_features // 2 > 1:
-        return (
-                jnp.linspace(0, max_frequency, int(num_features / 2), dtype=dtype)
-                / max_length
-        )
+        return (jnp.linspace(0, max_frequency, int(num_features / 2), dtype=dtype)                / max_length        )
     else:
         return jnp.array([max_frequency], dtype=dtype) / max_length
 
@@ -54,7 +37,6 @@ def frequency_init_fn(
 class EuclideanFastAttention(nn.Module):
     r"""Euclidean fast attention module for calculating global equivariant atomic representations given node features
         and node positions.
-
 
         Attributes:
 
@@ -130,28 +112,6 @@ class EuclideanFastAttention(nn.Module):
     ):
         """
         Given equivariant input features and node positions, calculate a Euclidean fast attention update.
-        Args:
-            inputs (): (num_nodes, 1 or 2, (max_degree + 1)**2, num_features) - Equivariant node features
-                The convention for equivariant features follows https://e3x.readthedocs.io/stable/index.html so
-                check it out for a detailed introduction.
-            positions (): (num_nodes, 3) - Node positions.
-            batch_segments (): (num_nodes) - The batch a node belongs to. For example assume a batch of two
-                molecules / graphs, where the first has 3 atoms and the second has 2 atoms. The batch_segments
-                would then be [0, 0, 0, 1, 1]. Since JAX requires static shapes for jit compilation,
-                batch_segments are usually padded towards a fixed length, such that the remaining entries
-                are filled with a padding index. For a fixed batch size of 7 nodes, this yields
-                batch_segments [0, 0, 0, 1, 1, 2, 2]. The corresponding graph_mask is then
-                [True, True, False]. For details about graph batching see also
-                https://e3x.readthedocs.io/stable/examples/md17_ethanol.html and
-                https://jraph.readthedocs.io/en/latest/api.html#batching-padding-utilities.
-            graph_mask (): (num_graphs) - Labels which graphs are "true" graphs and which are padded.
-                I.e. for the batch_segments example from above, it would be
-                [True, True] and [True, True, False].
-
-        Returns:
-            Updated features. Output shape depends on the specific settings, but will be the same shape as
-            `inputs` for default settings.
-
 
         """
 
